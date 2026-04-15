@@ -1,7 +1,11 @@
 from fastapi import FastAPI
 
+from app.settings import get_settings
 
-app = FastAPI(title="PDF Extractext API")
+
+settings = get_settings()
+
+app = FastAPI(title=settings.app_name, version=settings.app_version)
 
 
 @app.get("/health")
