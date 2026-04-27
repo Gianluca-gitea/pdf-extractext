@@ -50,4 +50,4 @@ base de datos planificada para futuras mejoras
 Para ejecutar el programa, se debe correr el archivo principal pasando como parámetro el PDF que deseamos procesar:
 
 ```bash
-python aplicación/main.py archivo.pdf
+python app/main.py archivo.pdf
