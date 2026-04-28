@@ -18,4 +18,9 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
         raise InvalidPDFError("El contenido no corresponde a un PDF valido.") from exc
 
     pages_text = [(page.extract_text() or "").strip() for page in reader.pages]
-    return "\n".join(text for text in pages_text if text).strip()
+    text_txt = "\n".join(text for text in pages_text if text).strip()
+
+    with open('archivo.txt', 'w', encoding='utf-8') as f:
+        f.write(text_txt)
+        return text_txt
+
