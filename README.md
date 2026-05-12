@@ -12,42 +12,86 @@ Nuestro objetivo es desarrollar una herramienta simple y funcional que permita p
 - Facilita el manejo de informacion contenida en documentos
 
 ## Arquitectura
-Nuestro proyecto se organiza en capas para separar las responsabilidades y facilitar su mantenimiento.
+El proyecto funciona como una API HTTP sobre FastAPI.
 
-### Capa de Presentación
-Se encarga de ejecutar el programa y recibir el archivo PDF que se desea procesar.
-Responsabilidades:
-- Ejecutar el programa
-- Recibir el archivo PDF a procesar
-- Iniciar la extracción de texto
-
-### Capa de Lógica
-Contiene las funciones encargadas de procesar el PDF y extraer el texto.
-Responsabilidades:
-- Procesar el archivo PDF
-- Extraer el texto
-- Realizar transformaciones necesarias sobre los datos
-
-### Capa de Datos
-Está pensada para:
-- Almacenar el texto extraído
-- Permitir la reutilización de la información
-- Integrarse con una base de datos en futuras versiones
+- Capa de presentación: endpoints de FastAPI definidos en `app/main.py`.
+- Capa de lógica: procesamiento y extracción de texto en `app/services/pdf_service.py`.
+- Capa de datos: actualmente no persiste en base de datos; el texto se procesa en memoria y se devuelve en la respuesta.
 
 ## Estructura
+- `app/main.py`: aplicación FastAPI y endpoints.
+- `app/services/pdf_service.py`: lógica de extracción de texto y OCR.
+- `app/settings.py`: configuración de la aplicación.
+- `tests/`: pruebas automatizadas.
 
-## Tecnologias usadas
-- Python
-lenguaje principal de desarrollo
-- OpenCode
-herramienta de apoyo en el desarrollo del proyecto 
-- UV 
-gestión de dependencias y entorno del proyecto  
--MongoDB
-base de datos planificada para futuras mejoras
+## Tecnologías usadas
+- Python 3.12+
+- FastAPI
+- Uvicorn
+- pypdf
+- PyMuPDF
+- OCRmyPDF
+- python-multipart
 
-## Uso 
-Para ejecutar el programa, se debe correr el archivo principal pasando como parámetro el PDF que deseamos procesar:
+> MongoDB es una mejora futura; actualmente no está integrada en el código.
+
+> Se planea resumen por IA
+
+> Se planea devolucíon como `.txt`
+
+## Instalación
+1. Crear y activar un entorno virtual:
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate
+   ```
+2. Instalar las dependencias:
+   ```bash
+   python -m pip install -e .
+   ```
+
+## API
+- `GET /health`
+  - Retorna `{ "status": "ok" }`.
+- `POST /documents/upload`
+  - Campo `file`: archivo PDF.
+  - Respuestas posibles:
+    - `200`: texto extraído y metadatos.
+    - `400`: archivo vacío, contenido inválido o `content_type` incorrecto.
+    - `413`: archivo demasiado grande.
+  - Retorna:
+    - `filename`
+    - `content_type`
+    - `size_bytes`
+    - `extracted_text`
+    - `status`
+
+## Uso
+Este proyecto se ejecuta como una API web con FastAPI.
+
+Para iniciar el servidor en modo desarrollo:
 
 ```bash
-python app/main.py archivo.pdf
+uvicorn app.main:app --reload
+```
+
+Para subir un PDF y extraer su texto, realiza un `POST` al endpoint `/documents/upload` con el archivo en un campo `file`.
+
+Ejemplo con `curl`:
+
+```bash
+curl -X POST "http://127.0.0.1:8000/documents/upload" \
+  -F "file=@documento.pdf"
+```
+> Nota: la interfaz de usuario aún está en desarrollo. Actualmente la interacción es por `curl` o cliente HTTP; está planeado un HTML sencillo para la carga de PDFs y la visualización del texto extraído.
+
+## Configuración
+- `APP_MAX_PDF_SIZE_BYTES`: límite máximo de tamaño de PDF en bytes. Por defecto es `5242880` (5 MB).
+
+## Pruebas
+Ejecuta las pruebas con:
+
+```bash
+pytest
+```
+
