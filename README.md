@@ -42,17 +42,12 @@ El proyecto funciona como una API HTTP sobre FastAPI.
 ## Instalación
 1. Crear y activar un entorno virtual:
    ```bash
-    uv venv
-
-  #Windows
-    .venv/bin/activate
-
-  #Linux/MacOS
-    source .venv/bin/activate
+   python -m venv .venv
+   source .venv/bin/activate
    ```
 2. Instalar las dependencias:
    ```bash
-    uv sync
+   python -m pip install -e .
    ```
 
 ## API
@@ -77,7 +72,7 @@ Este proyecto se ejecuta como una API web con FastAPI.
 Para iniciar el servidor en modo desarrollo:
 
 ```bash
-uv run uvicorn app.main:app --reload
+uvicorn app.main:app --reload
 ```
 
 Para subir un PDF y extraer su texto, realiza un `POST` al endpoint `/documents/upload` con el archivo en un campo `file`.
@@ -97,6 +92,6 @@ curl -X POST "http://127.0.0.1:8000/documents/upload" \
 Ejecuta las pruebas con:
 
 ```bash
-uv run pytest
+pytest
 ```
 
