@@ -29,7 +29,7 @@ jobs:
         pip install pypdf[all] fastapi[all] flake8 pytest ocrmypdf
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Install tesseract
-      run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa
+      run: sudo apt-get update && sudo apt-get install -y tesseract-ocr tesseract-ocr-eng tesseract-ocr-spa ghostscript
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
     - name: Lint with flake8
