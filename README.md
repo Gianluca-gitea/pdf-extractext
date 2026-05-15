@@ -28,6 +28,7 @@ El proyecto funciona como una API HTTP sobre FastAPI.
 - Python 3.12+
 - FastAPI
 - Uvicorn
+- UV
 - pypdf
 - PyMuPDF
 - OCRmyPDF
@@ -40,14 +41,25 @@ El proyecto funciona como una API HTTP sobre FastAPI.
 > Se planea devolucíon como `.txt`
 
 ## Instalación
-1. Crear y activar un entorno virtual:
+Este proyecto utiliza **`uv`** para gestionar dependencias.
+
+1. Instalar `uv` (si no está instalado):
    ```bash
-   python -m venv .venv
-   source .venv/bin/activate
+   pip install uv
    ```
-2. Instalar las dependencias:
+
+2. Sincronizar el entorno virtual e instalar las dependencias:
    ```bash
-   python -m pip install -e .
+   uv sync
+   ```
+
+3. Activar el entorno virtual:
+   ```bash
+   # En Windows
+   .venv\Scripts\activate
+   
+   # En macOS/Linux
+   source .venv/bin/activate
    ```
 
 ## API
@@ -72,7 +84,7 @@ Este proyecto se ejecuta como una API web con FastAPI.
 Para iniciar el servidor en modo desarrollo:
 
 ```bash
-uvicorn app.main:app --reload
+uv run uvicorn app.main:app --reload
 ```
 
 Para subir un PDF y extraer su texto, realiza un `POST` al endpoint `/documents/upload` con el archivo en un campo `file`.
@@ -92,6 +104,6 @@ curl -X POST "http://127.0.0.1:8000/documents/upload" \
 Ejecuta las pruebas con:
 
 ```bash
-pytest
+uv run pytest
 ```
 
