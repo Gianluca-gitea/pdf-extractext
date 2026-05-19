@@ -8,6 +8,9 @@ class Settings:
     app_version: str = "0.1.0"
     app_env: str = "dev"
     max_pdf_size_bytes: int = 5_242_880
+    # MongoDB Configuration
+    mongodb_uri: str = ""
+    mongodb_db_name: str = "pdf-extractext"
 
 
 def _read_positive_int_env(var_name: str, default: int) -> int:
@@ -29,4 +32,6 @@ def get_settings() -> Settings:
         app_version=os.getenv("APP_VERSION", "0.1.0"),
         app_env=os.getenv("APP_ENV", "dev"),
         max_pdf_size_bytes=_read_positive_int_env("APP_MAX_PDF_SIZE_BYTES", 5_242_880),
+        mongodb_uri=os.getenv("MONGODB_URI", ""),
+        mongodb_db_name=os.getenv("MONGODB_DB_NAME", "pdf-extractext"),
     )
