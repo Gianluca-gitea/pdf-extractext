@@ -9,6 +9,14 @@ class InvalidPDFError(ValueError):
 INVALID_PDF_CONTENT_ERROR = "El contenido no corresponde a un PDF valido."
 
 
+def _join_spans(line: dict) -> str:
+    return "".join(span.get("text", "") for span in line.get("spans", []))
+
+
+def _join_text_rows(rows: list[str]) -> str:
+    return "\n".join(rows).strip()
+
+
 def extract_text_from_pdf_bytes(file_bytes: bytes):
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
@@ -31,11 +39,11 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
                 block_text = []
                 
                 for line in block.get("lines", []):
-                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    line_text = _join_spans(line)
                     if line_text.strip():
                         block_text.append(line_text)
                 
-                final_text = "\n".join(block_text).strip()
+                final_text = _join_text_rows(block_text)
                 if final_text:
                     extracted_text.append(final_text)
                     
@@ -51,7 +59,7 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
                     except Exception:
                         pass
                 
-    text_txt = "\n".join(extracted_text).strip()
+    text_txt = _join_text_rows(extracted_text)
     
     with open("extracted_text.txt", "w", encoding="utf-8") as f:
         f.write(text_txt)
