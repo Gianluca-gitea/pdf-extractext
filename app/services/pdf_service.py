@@ -6,14 +6,17 @@ from PIL import Image
 class InvalidPDFError(ValueError):
     pass
 
+INVALID_PDF_CONTENT_ERROR = "El contenido no corresponde a un PDF valido."
+
+
 def extract_text_from_pdf_bytes(file_bytes: bytes):
     if not file_bytes.startswith(b"%PDF-"):
-        raise InvalidPDFError("El contenido no corresponde a un PDF valido.")
+        raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
     
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
-        raise InvalidPDFError("El contenido no corresponde a un PDF valido.") from exc
+        raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
     
     extracted_text = []
     
