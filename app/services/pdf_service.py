@@ -19,26 +19,35 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
     
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
-        
-        page_text = page.get_text().strip()
-        
-        if page_text:
-            extracted_text.append(page_text)
-            
-        image_list = page.get_images(full=True)
-        for img_index, img in enumerate(image_list):
-            imgref = img[0]
-            
-            base_image = doc.extract_image(imgref)
-            image_bytes = base_image["image"]
-            
-            image = Image.open(io.BytesIO(image_bytes))
-            
-            ocr_text = pytesseract.image_to_string(image).strip()
-            
-            if ocr_text:
-                extracted_text.append(ocr_text)
-                
+
+        blocks = page.get_text("blocks", sort=True)
+
+        for b in blocks:
+            x0, y0, x1, y1, text, block_no, block_type = b
+
+            if block_type == 0:
+                clean_text = text.strip()
+                if clean_text:
+                    extracted_text.append(clean_text)
+
+            elif block_type == 1:
+                try:
+                    rect = fitz.Rect(x0, y0, x1, y1)
+
+                    if rect.width < 10 or rect.height < 10:
+                        continue
+
+                    pix = page.get_pixmap(clip=rect, dpi = 300)
+                    image = Image.open(io.BytesIO(pix.tobytes()))
+
+                    ocr_text = pytesseract.image_to_string(image, lang="spa+eng")
+
+                    if ocr_text.strip():
+                        extracted_text.append(ocr_text.strip())
+
+                except Exception:
+                    continue
+
     text_txt = "\n".join(extracted_text).strip()
     
     with open("extracted_text.txt", "w", encoding="utf-8") as f:
