@@ -19,35 +19,35 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
     
     for page_num in range(len(doc)):
         page = doc.load_page(page_num)
-
-        blocks = page.get_text("blocks", sort=True)
-
-        for b in blocks:
-            x0, y0, x1, y1, text, block_no, block_type = b
-
-            if block_type == 0:
-                clean_text = text.strip()
-                if clean_text:
-                    extracted_text.append(clean_text)
-
-            elif block_type == 1:
-                try:
-                    rect = fitz.Rect(x0, y0, x1, y1)
-
-                    if rect.width < 10 or rect.height < 10:
-                        continue
-
-                    pix = page.get_pixmap(clip=rect, dpi = 300)
-                    image = Image.open(io.BytesIO(pix.tobytes()))
-
-                    ocr_text = pytesseract.image_to_string(image, lang="spa+eng")
-
-                    if ocr_text.strip():
-                        extracted_text.append(ocr_text.strip())
-
-                except Exception:
-                    continue
-
+        
+        page_dict = page.get_text("dict", sort=True)
+        blocks = page_dict.get("blocks", [])
+        
+        for block in blocks:
+            if block.get("type") == 0:
+                block_text = []
+                
+                for line in block.get("lines", []):
+                    line_text = "".join(span.get("text", "") for span in line.get("spans", []))
+                    if line_text.strip():
+                        block_text.append(line_text)
+                
+                final_text = "\n".join(block_text).strip()
+                if final_text:
+                    extracted_text.append(final_text)
+                    
+            elif block.get("type") == 1:
+                image_bytes = block.get("image")
+                if image_bytes:
+                    try:
+                        image = Image.open(io.BytesIO(image_bytes))
+                        ocr_text = pytesseract.image_to_string(image).strip()
+                        
+                        if ocr_text:
+                            extracted_text.append(ocr_text)
+                    except Exception:
+                        pass
+                
     text_txt = "\n".join(extracted_text).strip()
     
     with open("extracted_text.txt", "w", encoding="utf-8") as f:
