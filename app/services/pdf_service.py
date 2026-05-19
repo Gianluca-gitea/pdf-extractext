@@ -1,12 +1,18 @@
 import io
+import logging
+
 import fitz
 import pytesseract
 from PIL import Image
+
+logger = logging.getLogger(__name__)
 
 class InvalidPDFError(ValueError):
     pass
 
 INVALID_PDF_CONTENT_ERROR = "El contenido no corresponde a un PDF valido."
+TEXT_BLOCK = 0
+IMAGE_BLOCK = 1
 
 
 def _join_spans(line: dict) -> str:
@@ -35,7 +41,8 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
         blocks = page_dict.get("blocks", [])
         
         for block in blocks:
-            if block.get("type") == 0:
+            block_type = block.get("type")
+            if block_type == TEXT_BLOCK:
                 block_text = []
                 
                 for line in block.get("lines", []):
@@ -47,7 +54,7 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
                 if final_text:
                     extracted_text.append(final_text)
                     
-            elif block.get("type") == 1:
+            elif block_type == IMAGE_BLOCK:
                 image_bytes = block.get("image")
                 if image_bytes:
                     try:
@@ -56,8 +63,13 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
                         
                         if ocr_text:
                             extracted_text.append(ocr_text)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning(
+                            "OCR failed for image block on page %s: %s",
+                            page_num,
+                            exc,
+                            exc_info=True,
+                        )
                 
     text_txt = _join_text_rows(extracted_text)
     
