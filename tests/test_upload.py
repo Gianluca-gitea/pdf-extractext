@@ -5,6 +5,7 @@ from fastapi.testclient import TestClient
 from pypdf import PdfWriter
 
 from app import main as main_module
+from app.services import pdf_service as pdf_service_module
 
 
 client = TestClient(main_module.app)
@@ -39,7 +40,7 @@ def test_upload_pdf_rejects_non_pdf_file() -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "El archivo debe enviarse como application/pdf."}
+    assert response.json() == {"detail": main_module.INVALID_CONTENT_TYPE_ERROR_DETAIL}
 
 
 def test_upload_pdf_rejects_invalid_pdf_content() -> None:
@@ -48,7 +49,7 @@ def test_upload_pdf_rejects_invalid_pdf_content() -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": "El contenido no corresponde a un PDF valido."}
+    assert response.json() == {"detail": pdf_service_module.INVALID_PDF_CONTENT_ERROR}
 
 
 def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
@@ -59,4 +60,4 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
-    assert response.json() == {"detail": "El archivo supera el tamano maximo permitido de 10 bytes."}
+    assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
