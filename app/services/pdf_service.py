@@ -16,6 +16,7 @@ from app.services.document_builder import construir_documento
 
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 class InvalidPDFError(ValueError):
@@ -110,11 +111,29 @@ def process_pdf_upload(
 ) -> dict[str, Any]:
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
+    logger.info(
+        "Processing PDF upload: filename=%s checksum=%s size_bytes=%d",
+        file_name,
+        checksum,
+        len(file_bytes),
+    )
+
     texto_extraido = extract_text_from_pdf_bytes(file_bytes)
+    logger.debug(
+        "Extracted text length=%d for filename=%s",
+        len(texto_extraido),
+        file_name,
+    )
 
     active_repository = repository or DocumentRepository()
     existing = active_repository.find_by_checksum(checksum)
     if existing is not None:
+        logger.info(
+            "Duplicate document detected: filename=%s checksum=%s existing_id=%s",
+            file_name,
+            checksum,
+            existing.get("_id"),
+        )
         return {
             "document_id": str(existing.get("_id", "")),
             "document": existing,
@@ -130,6 +149,13 @@ def process_pdf_upload(
     )
 
     inserted_id = active_repository.save_document(document)
+    logger.info(
+        "Saved new document: filename=%s checksum=%s inserted_id=%s duration_ms=%d",
+        file_name,
+        checksum,
+        inserted_id,
+        duration_ms,
+    )
 
     return {
         "document_id": str(inserted_id),
