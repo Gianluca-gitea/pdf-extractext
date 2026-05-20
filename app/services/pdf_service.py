@@ -23,6 +23,22 @@ def _join_text_rows(rows: list[str]) -> str:
     return "\n".join(rows).strip()
 
 
+def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
+    if not image_bytes:
+        return ""
+
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        return pytesseract.image_to_string(image).strip()
+    except Exception as exc:
+        logger.warning(
+            "OCR failed for image block: %s",
+            exc,
+            exc_info=True,
+        )
+        return ""
+
+
 def extract_text_from_pdf_bytes(file_bytes: bytes):
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
@@ -55,21 +71,9 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
                     extracted_text.append(final_text)
                     
             elif block_type == IMAGE_BLOCK:
-                image_bytes = block.get("image")
-                if image_bytes:
-                    try:
-                        image = Image.open(io.BytesIO(image_bytes))
-                        ocr_text = pytesseract.image_to_string(image).strip()
-                        
-                        if ocr_text:
-                            extracted_text.append(ocr_text)
-                    except Exception as exc:
-                        logger.warning(
-                            "OCR failed for image block on page %s: %s",
-                            page_num,
-                            exc,
-                            exc_info=True,
-                        )
+                ocr_text = _extract_text_from_image_bytes(block.get("image"))
+                if ocr_text:
+                    extracted_text.append(ocr_text)
                 
     text_txt = _join_text_rows(extracted_text)
     
