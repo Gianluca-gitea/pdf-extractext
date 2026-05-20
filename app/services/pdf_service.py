@@ -114,7 +114,7 @@ def process_pdf_upload(
 
     document = construir_documento(
         pdf_nombre=file_name,
-        texto_pdf=texto_extraido,
+        texto_extraido=texto_extraido,
         checksum_archivo=checksum,
         duracion_ms=duration_ms,
     )
