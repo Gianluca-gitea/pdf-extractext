@@ -109,11 +109,12 @@ def process_pdf_upload(
     repository: DocumentRepository | None = None,) -> dict[str, Any]:
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
+    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
     duration_ms = int((perf_counter() - started_at) * 1000)
 
     document = construir_documento(
         pdf_nombre=file_name,
-        texto_extraido=text_txt,
+        texto_pdf=texto_extraido,
         checksum_archivo=checksum,
         duracion_ms=duration_ms,
     )
