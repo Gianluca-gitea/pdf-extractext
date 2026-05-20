@@ -3,7 +3,7 @@ from io import BytesIO
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
-from pypdf import PdfWriter
+import fitz
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
@@ -13,11 +13,9 @@ client = TestClient(main_module.app)
 
 
 def _build_valid_pdf_bytes() -> bytes:
-    writer = PdfWriter()
-    writer.add_blank_page(width=200, height=200)
-    buffer = BytesIO()
-    writer.write(buffer)
-    return buffer.getvalue()
+    doc = fitz.open()
+    doc.new_page(width=200, height=200)
+    return doc.write()
 
 
 def test_upload_pdf_accepts_real_file(monkeypatch) -> None:
