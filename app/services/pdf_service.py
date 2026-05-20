@@ -101,11 +101,13 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
 
     return text_txt
 
+
 def process_pdf_upload(
     *,
     file_name: str,
     file_bytes: bytes,
-    repository: DocumentRepository | None = None,) -> dict[str, Any]:
+    repository: DocumentRepository | None = None,
+) -> dict[str, Any]:
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
     texto_extraido = extract_text_from_pdf_bytes(file_bytes)
