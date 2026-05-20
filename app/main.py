@@ -4,8 +4,8 @@ from app.settings import get_settings
 from app.services.pdf_service import InvalidPDFError, extract_text_from_pdf_bytes
 
 
-EMPTY_FILE_ERROR_DETAIL = "El archivo esta vacio."
-MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamano maximo permitido de {max_size} bytes."
+EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
+MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
 INVALID_CONTENT_TYPE_ERROR_DETAIL = "El archivo debe enviarse como application/pdf."
 
 
