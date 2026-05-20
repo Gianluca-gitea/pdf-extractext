@@ -10,7 +10,7 @@ from bson.objectid import ObjectId
 class DocumentRepository:
     def __init__(self, mongo_client: MongoClient | None = None):
         if mongo_client is None:
-            mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+            mongo_uri = os.getenv("MONGO_URI", "mongodb+srv://rebecolautaro_db_user:lobOFc0HGhM4rC6i@pdf-extractext.fhhfn2f.mongodb.net/")
             mongo_client = MongoClient(mongo_uri)
 
         self.client = mongo_client
