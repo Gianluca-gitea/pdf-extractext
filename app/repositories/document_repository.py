@@ -10,11 +10,11 @@ from bson.objectid import ObjectId
 class DocumentRepository:
     def __init__(self, mongo_client: MongoClient | None = None):
         if mongo_client is None:
-            mongo_uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+            mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
             mongo_client = MongoClient(mongo_uri)
 
         self.client = mongo_client
-        database_name = os.getenv("MONGO_DB_NAME", "pdf_extractext")
+        database_name = os.getenv("MONGODB_DB_NAME", "pdf-extractext")
         collection_name = os.getenv("MONGO_COLLECTION_NAME", "documents")
 
         self.db = mongo_client[database_name]
