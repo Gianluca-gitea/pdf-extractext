@@ -70,8 +70,6 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     except Exception as exc:
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
     
-    extracted_text = []
-    
     extracted_text = [
         text
         for page_num in range(len(doc))
