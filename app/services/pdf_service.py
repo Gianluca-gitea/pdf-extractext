@@ -5,20 +5,26 @@ import fitz
 import pytesseract
 from PIL import Image
 
+
 logger = logging.getLogger(__name__)
+
 
 class InvalidPDFError(ValueError):
     pass
+
 
 INVALID_PDF_CONTENT_ERROR = "El contenido no corresponde a un PDF valido."
 TEXT_BLOCK = 0
 IMAGE_BLOCK = 1
 
+
 def _join_spans(line: dict) -> str:
     return "".join(span.get("text", "") for span in line.get("spans", []))
 
+
 def _join_text_rows(rows: list[str]) -> str:
     return "\n".join(rows).strip()
+
 
 def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
     if not image_bytes:
@@ -34,6 +40,7 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
             exc_info=True,
         )
         return ""
+
 
 def _extract_text_from_block(block: dict) -> list[str]:
     block_type = block.get("type")
@@ -52,6 +59,7 @@ def _extract_text_from_block(block: dict) -> list[str]:
 
     return []
 
+
 def _extract_text_from_page(page) -> list[str]:
     page_dict = page.get_text("dict", sort=True)
     blocks = page_dict.get("blocks", [])
@@ -61,15 +69,16 @@ def _extract_text_from_page(page) -> list[str]:
         for text in _extract_text_from_block(block)
     ]
 
+
 def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
-    
+
     try:
         doc = fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
-    
+
     extracted_text = [
         text
         for page_num in range(len(doc))
