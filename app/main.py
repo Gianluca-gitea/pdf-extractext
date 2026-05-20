@@ -5,6 +5,9 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from app.settings import get_settings
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
 
+from dotenv import load_dotenv
+
+load_dotenv()
 
 settings = get_settings()
 
