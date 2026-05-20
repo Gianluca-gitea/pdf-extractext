@@ -39,7 +39,35 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
         return ""
 
 
-def extract_text_from_pdf_bytes(file_bytes: bytes):
+def _extract_text_from_block(block: dict) -> list[str]:
+    block_type = block.get("type")
+    if block_type == TEXT_BLOCK:
+        lines = [
+            _join_spans(line).strip()
+            for line in block.get("lines", [])
+        ]
+        valid_lines = [line for line in lines if line]
+        joined_text = _join_text_rows(valid_lines)
+        return [joined_text] if joined_text else []
+
+    if block_type == IMAGE_BLOCK:
+        ocr_text = _extract_text_from_image_bytes(block.get("image"))
+        return [ocr_text] if ocr_text else []
+
+    return []
+
+
+def _extract_text_from_page(page) -> list[str]:
+    page_dict = page.get_text("dict", sort=True)
+    blocks = page_dict.get("blocks", [])
+    return [
+        text
+        for block in blocks
+        for text in _extract_text_from_block(block)
+    ]
+
+
+def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
     
@@ -50,34 +78,15 @@ def extract_text_from_pdf_bytes(file_bytes: bytes):
     
     extracted_text = []
     
-    for page_num in range(len(doc)):
-        page = doc.load_page(page_num)
-        
-        page_dict = page.get_text("dict", sort=True)
-        blocks = page_dict.get("blocks", [])
-        
-        for block in blocks:
-            block_type = block.get("type")
-            if block_type == TEXT_BLOCK:
-                block_text = []
-                
-                for line in block.get("lines", []):
-                    line_text = _join_spans(line)
-                    if line_text.strip():
-                        block_text.append(line_text)
-                
-                final_text = _join_text_rows(block_text)
-                if final_text:
-                    extracted_text.append(final_text)
-                    
-            elif block_type == IMAGE_BLOCK:
-                ocr_text = _extract_text_from_image_bytes(block.get("image"))
-                if ocr_text:
-                    extracted_text.append(ocr_text)
-                
+    extracted_text = [
+        text
+        for page_num in range(len(doc))
+        for text in _extract_text_from_page(doc.load_page(page_num))
+    ]
+
     text_txt = _join_text_rows(extracted_text)
-    
+
     with open("extracted_text.txt", "w", encoding="utf-8") as f:
         f.write(text_txt)
-        
+
     return text_txt
