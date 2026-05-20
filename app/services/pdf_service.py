@@ -109,6 +109,15 @@ def process_pdf_upload(
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
     texto_extraido = extract_text_from_pdf_bytes(file_bytes)
+
+    active_repository = repository or DocumentRepository()
+    existing = active_repository.find_by_checksum(checksum)
+    if existing is not None:
+        return {
+            "document_id": str(existing.get("_id", "")),
+            "document": existing,
+        }
+
     duration_ms = int((perf_counter() - started_at) * 1000)
 
     document = construir_documento(
@@ -118,7 +127,6 @@ def process_pdf_upload(
         duracion_ms=duration_ms,
     )
 
-    active_repository = repository or DocumentRepository()
     inserted_id = active_repository.save_document(document)
 
     return {
