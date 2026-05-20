@@ -12,6 +12,7 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
     file_bytes = b"%PDF-1.4 test"
     repository = MagicMock()
     repository.save_document.return_value = ObjectId("507f1f77bcf86cd799439011")
+    repository.find_by_checksum.return_value = None
 
     monkeypatch.setattr(
         pdf_service,
