@@ -36,6 +36,7 @@ class TestChecksumService:
 
         assert result == expected_checksum
 
+
     def test_calc_checksum_handles_binary_data(self) -> None:
         file_bytes = bytes(range(256))
         expected_checksum = hashlib.sha256(file_bytes).hexdigest()

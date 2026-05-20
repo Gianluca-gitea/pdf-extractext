@@ -100,7 +100,6 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
         f.write(text_txt)
 
     return text_txt
-   
 
 def process_pdf_upload(
     *,
