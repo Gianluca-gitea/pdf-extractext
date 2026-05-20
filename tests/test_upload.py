@@ -1,5 +1,4 @@
 from dataclasses import replace
-from io import BytesIO
 from unittest.mock import MagicMock
 
 from fastapi.testclient import TestClient
