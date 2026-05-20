@@ -16,7 +16,6 @@ class Settings:
 
 
 def get_settings() -> Settings:
-    # Read and validate max PDF size from environment
     max_pdf_size_raw = os.getenv("APP_MAX_PDF_SIZE_BYTES")
     if max_pdf_size_raw is not None:
         try:
