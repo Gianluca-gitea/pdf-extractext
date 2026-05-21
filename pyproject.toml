@@ -9,8 +9,7 @@ dependencies = [
     "python-multipart",
     "PyMuPDF",
     "pymongo==4.17.0",
-    "pytesseract",
-    "python-dotenv = ^1.0.1"
+    "pytesseract"
 ]
 requires-python = ">=3.12"
 
