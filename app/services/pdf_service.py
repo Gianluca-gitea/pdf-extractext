@@ -118,13 +118,6 @@ def process_pdf_upload(
         len(file_bytes),
     )
 
-    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
-    logger.debug(
-        "Extracted text length=%d for filename=%s",
-        len(texto_extraido),
-        file_name,
-    )
-
     active_repository = repository or DocumentRepository()
     existing = active_repository.find_by_checksum(checksum)
     if existing is not None:
@@ -138,6 +131,13 @@ def process_pdf_upload(
             "document_id": str(existing.get("_id", "")),
             "document": existing,
         }
+
+    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
+    logger.debug(
+        "Extracted text length=%d for filename=%s",
+        len(texto_extraido),
+        file_name,
+    )
 
     duration_ms = int((perf_counter() - started_at) * 1000)
 

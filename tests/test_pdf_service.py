@@ -56,3 +56,30 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
     repository.save_document.assert_called_once_with(result["document"])
     assert result["document"]["txt_contenido"] == "texto extraido"
     assert result["document_id"] == "507f1f77bcf86cd799439011"
+
+
+def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
+    monkeypatch,
+) -> None:
+    file_name = "documento.pdf"
+    file_bytes = b"%PDF-1.4 test"
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = {
+        "_id": ObjectId("507f1f77bcf86cd799439011"),
+        "txt_contenido": "texto ya procesado",
+    }
+
+    extract_text_mock = MagicMock()
+    monkeypatch.setattr(pdf_service, "extract_text_from_pdf_bytes", extract_text_mock)
+    monkeypatch.setattr(pdf_service, "calc_checksum", lambda received_bytes: "checksum123")
+
+    result = pdf_service.process_pdf_upload(
+        file_name=file_name,
+        file_bytes=file_bytes,
+        repository=repository,
+    )
+
+    extract_text_mock.assert_not_called()
+    repository.save_document.assert_not_called()
+    assert result["document_id"] == "507f1f77bcf86cd799439011"
+    assert result["document"]["txt_contenido"] == "texto ya procesado"

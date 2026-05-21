@@ -2,8 +2,11 @@ from __future__ import annotations
 
 import logging
 
+from bson.objectid import ObjectId
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.responses import Response
 
+from app.repositories.document_repository import DocumentRepository
 from app.settings import get_settings
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
 
@@ -33,6 +36,50 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 def health() -> dict[str, str]:
     logger.debug("Health check requested")
     return {"status": "ok"}
+
+
+def _serialize_document(document: dict) -> dict:
+    document_copy = {
+        **document,
+        "_id": str(document.get("_id", "")),
+    }
+    return document_copy
+
+
+@app.get("/documents/by-checksum/{checksum}")
+def get_document_by_checksum(checksum: str) -> dict[str, object]:
+    repository = DocumentRepository()
+    document = repository.find_by_checksum(checksum)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+
+    return {
+        "document_id": str(document.get("_id", "")),
+        "document": _serialize_document(document),
+    }
+
+
+@app.get("/documents/{document_id}/download")
+def download_document_text(document_id: str) -> Response:
+    try:
+        object_id = ObjectId(document_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID de documento inválido.")
+
+    repository = DocumentRepository()
+    document = repository.find_by_id(object_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+
+    txt_content = document.get("txt_contenido", "")
+    downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"
+    return Response(
+        content=txt_content,
+        media_type="text/plain",
+        headers={
+            "Content-Disposition": f'attachment; filename="{downloaded_filename}"',
+        },
+    )
 
 
 @app.post("/documents/upload")

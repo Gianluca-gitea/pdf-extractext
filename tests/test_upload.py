@@ -1,6 +1,7 @@
 from dataclasses import replace
 from unittest.mock import MagicMock
 
+from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 import fitz
 
@@ -91,3 +92,62 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
 
     assert response.status_code == 413
     assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
+
+
+def test_download_document_returns_txt_attachment(monkeypatch) -> None:
+    document_id = ObjectId("507f1f77bcf86cd799439011")
+    repository = MagicMock()
+    repository.find_by_id.return_value = {
+        "_id": document_id,
+        "pdf_nombre": "documento.pdf",
+        "txt_contenido": "texto descargable",
+    }
+
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get(f"/documents/{document_id}/download")
+
+    assert response.status_code == 200
+    assert response.text == "texto descargable"
+    assert response.headers["content-disposition"] == 'attachment; filename="documento.pdf.txt"'
+    assert response.headers["content-type"].startswith("text/plain")
+
+
+def test_download_document_returns_404_for_missing_document(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_id.return_value = None
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/507f1f77bcf86cd799439011/download")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Documento no encontrado."}
+
+
+def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = {
+        "_id": ObjectId("507f1f77bcf86cd799439011"),
+        "pdf_nombre": "documento.pdf",
+        "txt_contenido": "texto existente",
+    }
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/by-checksum/checksum123")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_id"] == "507f1f77bcf86cd799439011"
+    assert body["document"]["_id"] == "507f1f77bcf86cd799439011"
+    assert body["document"]["txt_contenido"] == "texto existente"
+
+
+def test_get_document_by_checksum_returns_404_when_missing(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = None
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/by-checksum/checksum123")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Documento no encontrado."}
