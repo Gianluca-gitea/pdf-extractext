@@ -7,8 +7,6 @@ from time import perf_counter
 from typing import Any
 
 import fitz
-import pytesseract
-from PIL import Image
 
 from app.repositories.document_repository import DocumentRepository
 from app.services.checksum_service import calc_checksum
@@ -41,6 +39,13 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
         return ""
 
     try:
+        try:
+            from PIL import Image
+            import pytesseract
+        except Exception as exc:  # pragma: no cover - environment dependent
+            logger.warning("OCR dependencies not available: %s", exc)
+            return ""
+
         image = Image.open(io.BytesIO(image_bytes))
         return pytesseract.image_to_string(image).strip()
     except Exception as exc:
@@ -118,13 +123,6 @@ def process_pdf_upload(
         len(file_bytes),
     )
 
-    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
-    logger.debug(
-        "Extracted text length=%d for filename=%s",
-        len(texto_extraido),
-        file_name,
-    )
-
     active_repository = repository or DocumentRepository()
     existing = active_repository.find_by_checksum(checksum)
     if existing is not None:
@@ -138,6 +136,13 @@ def process_pdf_upload(
             "document_id": str(existing.get("_id", "")),
             "document": existing,
         }
+
+    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
+    logger.debug(
+        "Extracted text length=%d for filename=%s",
+        len(texto_extraido),
+        file_name,
+    )
 
     duration_ms = int((perf_counter() - started_at) * 1000)
 
