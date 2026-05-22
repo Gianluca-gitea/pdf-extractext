@@ -80,7 +80,7 @@ def download_document_text(document_id: str) -> Response:
 
     txt_content = document.get("txt_contenido", "")
     downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"
-    
+
     logger.info(
         "Download processed successfully for document_id: %s, filename: %s",
         document_id,
