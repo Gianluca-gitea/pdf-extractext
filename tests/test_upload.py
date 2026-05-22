@@ -65,20 +65,20 @@ def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch) -> None:
     assert response.json()["extracted_text"] == "texto desde service"
 
 
+def test_upload_pdf_rejects_non_pdf_file() -> None:
+    files = {"file": ("texto.txt", b"hola", "text/plain")}
+
+    response = client.post("/documents/upload", files=files)
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": main_module.INVALID_CONTENT_TYPE_ERROR_DETAIL}
+
+
 def test_upload_pdf_rejects_invalid_pdf_content(monkeypatch) -> None:
     process_mock = MagicMock()
     process_mock.find_by_checksum.return_value = None
     monkeypatch.setattr(pdf_service_module, "DocumentRepository", lambda: process_mock)
 
-    files = {"file": ("falso.pdf", b"esto no es un pdf", "application/pdf")}
-
-    response = client.post("/documents/upload", files=files)
-
-    assert response.status_code == 400
-    assert response.json() == {"detail": pdf_service_module.INVALID_PDF_CONTENT_ERROR}
-
-
-def test_upload_pdf_rejects_invalid_pdf_content() -> None:
     files = {"file": ("falso.pdf", b"esto no es un pdf", "application/pdf")}
 
     response = client.post("/documents/upload", files=files)
