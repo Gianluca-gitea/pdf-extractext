@@ -24,9 +24,10 @@ class DocumentRepository:
         self.db = mongo_client[database_name]
         self.collection = self.db[collection_name]
 
+        actual_uri = mongo_client.address if hasattr(mongo_client, "address") else mongo_uri
         logger.info(
             "DocumentRepository initialized: uri=%s database=%s collection=%s",
-            mongo_client.address if hasattr(mongo_client, 'address') else os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
+            actual_uri,
             database_name,
             collection_name,
         )

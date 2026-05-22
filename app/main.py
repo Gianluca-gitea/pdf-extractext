@@ -5,10 +5,13 @@ import logging
 from bson.objectid import ObjectId
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import Response
+from dotenv import load_dotenv
 
 from app.repositories.document_repository import DocumentRepository
 from app.settings import get_settings
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
+
+load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
@@ -16,10 +19,6 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 logging.getLogger().setLevel(logging.INFO)
-
-from dotenv import load_dotenv
-
-load_dotenv()
 
 EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
 MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
@@ -51,7 +50,7 @@ def get_document_by_checksum(checksum: str) -> dict[str, object]:
     logger.info("Requested document by checksum: %s", checksum)
     repository = DocumentRepository()
     document = repository.find_by_checksum(checksum)
-    
+
     if document is None:
         logger.warning("Document not found for checksum: %s", checksum)
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
@@ -74,7 +73,7 @@ def download_document_text(document_id: str) -> Response:
 
     repository = DocumentRepository()
     document = repository.find_by_id(object_id)
-    
+
     if document is None:
         logger.warning("Download failed: Document not found for ID: %s", document_id)
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
@@ -83,11 +82,11 @@ def download_document_text(document_id: str) -> Response:
     downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"
     
     logger.info(
-        "Download processed successfully for document_id: %s, filename: %s", 
-        document_id, 
-        downloaded_filename
+        "Download processed successfully for document_id: %s, filename: %s",
+        document_id,
+        downloaded_filename,
     )
-    
+
     return Response(
         content=txt_content,
         media_type="text/plain",

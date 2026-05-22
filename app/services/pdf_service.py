@@ -36,7 +36,11 @@ def _join_text_rows(rows: list[str]) -> str:
 
 
 def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
-    logger.debug("Extracting text from image bytes: present=%s size=%d", bool(image_bytes), len(image_bytes) if image_bytes else 0)
+    logger.debug(
+        "Extracting text from image bytes: present=%s size=%d",
+        bool(image_bytes),
+        len(image_bytes) if image_bytes else 0,
+    )
 
     if not image_bytes:
         logger.debug("No image bytes to extract OCR from")
@@ -150,7 +154,7 @@ def process_pdf_upload(
             checksum,
             existing.get("_id"),
         )
-        
+
         texto_extraido = existing.get("txt_contenido", "")
         _save_text_to_disk(file_name, texto_extraido)
         return {
