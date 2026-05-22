@@ -154,3 +154,4 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
         "extracted_text": result["document"]["txt_contenido"],
         "status": "uploaded",
     }
+
