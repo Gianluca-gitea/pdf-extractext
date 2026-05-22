@@ -15,7 +15,7 @@ dependencies = [
     "pymupdf>=1.25.0",
     "Pillow>=10.0.0",
     "pymongo==4.17.0",
-    "pytesseract==0.3.10",
+    "pytesseract>=0.3.13",
     "python-dotenv==1.0.1"
 ]
 

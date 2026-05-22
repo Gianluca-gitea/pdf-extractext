@@ -48,11 +48,15 @@ def _serialize_document(document: dict) -> dict:
 
 @app.get("/documents/by-checksum/{checksum}")
 def get_document_by_checksum(checksum: str) -> dict[str, object]:
+    logger.info("Requested document by checksum: %s", checksum)
     repository = DocumentRepository()
     document = repository.find_by_checksum(checksum)
+    
     if document is None:
+        logger.warning("Document not found for checksum: %s", checksum)
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
 
+    logger.info("Document found for checksum: %s, document_id: %s", checksum, document.get("_id"))
     return {
         "document_id": str(document.get("_id", "")),
         "document": _serialize_document(document),
@@ -61,18 +65,29 @@ def get_document_by_checksum(checksum: str) -> dict[str, object]:
 
 @app.get("/documents/{document_id}/download")
 def download_document_text(document_id: str) -> Response:
+    logger.info("Download requested for document_id: %s", document_id)
     try:
         object_id = ObjectId(document_id)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Invalid document ID format: %s. Error: %s", document_id, exc)
         raise HTTPException(status_code=400, detail="ID de documento inválido.")
 
     repository = DocumentRepository()
     document = repository.find_by_id(object_id)
+    
     if document is None:
+        logger.warning("Download failed: Document not found for ID: %s", document_id)
         raise HTTPException(status_code=404, detail="Documento no encontrado.")
 
     txt_content = document.get("txt_contenido", "")
     downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"
+    
+    logger.info(
+        "Download processed successfully for document_id: %s, filename: %s", 
+        document_id, 
+        downloaded_filename
+    )
+    
     return Response(
         content=txt_content,
         media_type="text/plain",
