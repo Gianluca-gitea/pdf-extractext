@@ -11,6 +11,7 @@ import fitz
 from app.repositories.document_repository import DocumentRepository
 from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
+from pathlib import Path
 
 
 logger = logging.getLogger(__name__)
@@ -35,7 +36,10 @@ def _join_text_rows(rows: list[str]) -> str:
 
 
 def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
+    logger.debug("Extracting text from image bytes: present=%s size=%d", bool(image_bytes), len(image_bytes) if image_bytes else 0)
+
     if not image_bytes:
+        logger.debug("No image bytes to extract OCR from")
         return ""
 
     try:
@@ -59,6 +63,7 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
 
 def _extract_text_from_block(block: dict) -> list[str]:
     block_type = block.get("type")
+    logger.debug("Extracting text from block: type=%s", block_type)
     if block_type == TEXT_BLOCK:
         lines = [
             _join_spans(line).strip()
@@ -78,6 +83,7 @@ def _extract_text_from_block(block: dict) -> list[str]:
 def _extract_text_from_page(page) -> list[str]:
     page_dict = page.get_text("dict", sort=True)
     blocks = page_dict.get("blocks", [])
+    logger.debug("Extracting text from page: blocks=%d", len(blocks))
     return [
         text
         for block in blocks
@@ -86,6 +92,8 @@ def _extract_text_from_page(page) -> list[str]:
 
 
 def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
+    logger.info("Starting PDF text extraction: bytes=%d", len(file_bytes))
+
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
 
@@ -94,6 +102,8 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     except Exception as exc:
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
 
+    logger.info("Opened PDF stream: pages=%d", len(doc))
+
     extracted_text = [
         text
         for page_num in range(len(doc))
@@ -101,11 +111,19 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     ]
 
     text_txt = _join_text_rows(extracted_text)
-
-    with open("extracted_text.txt", "w", encoding="utf-8") as f:
-        f.write(text_txt)
-
+    logger.info("Extraction complete: pages=%d chars=%d", len(doc), len(text_txt))
     return text_txt
+
+
+def _save_text_to_disk(file_name: str, text: str) -> str:
+    base = Path(file_name).stem
+    txt_name = f"{base}.txt"
+    try:
+        Path(txt_name).write_text(text, encoding="utf-8")
+        logger.info("Saved extracted text to %s", txt_name)
+    except Exception as exc:
+        logger.warning("Failed to save extracted text to %s: %s", txt_name, exc)
+    return txt_name
 
 
 def process_pdf_upload(
@@ -132,6 +150,9 @@ def process_pdf_upload(
             checksum,
             existing.get("_id"),
         )
+        
+        texto_extraido = existing.get("txt_contenido", "")
+        _save_text_to_disk(file_name, texto_extraido)
         return {
             "document_id": str(existing.get("_id", "")),
             "document": existing,
@@ -143,6 +164,8 @@ def process_pdf_upload(
         len(texto_extraido),
         file_name,
     )
+
+    _save_text_to_disk(file_name, texto_extraido)
 
     duration_ms = int((perf_counter() - started_at) * 1000)
 
