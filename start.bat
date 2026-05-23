@@ -3,6 +3,14 @@ echo =========================================
 echo   Iniciando PDF Extractext
 echo =========================================
 
+IF NOT EXIST ".venv\" (
+    echo [INFO] No se encontro el entorno virtual '.venv'.
+    echo [INFO] Creando entorno e instalando dependencias con uv...
+    uv venv
+    uv pip install fastapi uvicorn pymongo PyMuPDF python-dotenv requests python-multipart
+    echo [INFO] Instalacion completada.
+)
+
 echo [INFO] Asegurate de que MongoDB este corriendo en el puerto 27017...
 
 echo [INFO] Iniciando el backend..
