@@ -3,7 +3,6 @@ from tkinter import filedialog, messagebox
 import requests
 import logging
 
-# Setup matching pdf_service.py
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
