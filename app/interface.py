@@ -52,7 +52,7 @@ def extraer_texto():
                     "application/pdf"
                 )
             }
-            
+
             logger.debug("Sending POST request to /documents/upload")
             response = requests.post(
                 "http://127.0.0.1:8000/documents/upload",
@@ -62,7 +62,7 @@ def extraer_texto():
         if response.status_code == 200:
             logger.info("Backend request successful (200 OK)")
             data = response.json()
-            
+
             texto_extraido_global = data.get("extracted_text", "")
             logger.debug("Received extracted text length=%d", len(texto_extraido_global))
 

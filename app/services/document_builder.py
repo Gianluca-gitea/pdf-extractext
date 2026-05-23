@@ -15,7 +15,7 @@ def construir_documento(
     estado: str = "ok",
     error: str | None = None,
 ) -> dict:
-    
+
     logger.debug(
         "Building document dict: pdf_nombre=%s checksum=%s text_chars=%d status=%s",
         pdf_nombre,

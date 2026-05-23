@@ -21,23 +21,23 @@ class Settings:
 
 def get_settings() -> Settings:
     logger.debug("Loading application settings from environment")
-    
+
     max_pdf_size_raw = os.getenv("APP_MAX_PDF_SIZE_BYTES")
     if max_pdf_size_raw is not None:
         try:
             max_pdf_size = int(max_pdf_size_raw)
             if max_pdf_size <= 0:
                 logger.warning(
-                    "APP_MAX_PDF_SIZE_BYTES must be strictly positive (got %d). Falling back to default: %d", 
-                    max_pdf_size, 
+                    "APP_MAX_PDF_SIZE_BYTES must be strictly positive (got %d). Falling back to default: %d",
+                    max_pdf_size,
                     DEFAULT_MAX_PDF_SIZE_BYTES
                 )
                 max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
-        except ValueError as exc:
+        except ValueError:
             logger.warning(
-                "Invalid APP_MAX_PDF_SIZE_BYTES value provided: '%s'. Falling back to default: %d", 
-                max_pdf_size_raw, 
-                DEFAULT_MAX_PDF_SIZE_BYTES, 
+                "Invalid APP_MAX_PDF_SIZE_BYTES value provided: '%s'. Falling back to default: %d",
+                max_pdf_size_raw,
+                DEFAULT_MAX_PDF_SIZE_BYTES,
                 exc_info=True
             )
             max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
