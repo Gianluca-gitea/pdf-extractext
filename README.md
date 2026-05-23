@@ -2,108 +2,126 @@
 
 ## Descripción
 Este proyecto fue desarrollado con el objetivo de extraer texto de archivos de una forma automática. 
-La idea surge para tener que evitarnos estar copiando contenido de una forma manual, facilitando así de una forma sencilla el procesamiento de documentos
+La idea surge para tener que evitarnos estar copiando contenido de una forma manual, facilitando así de una forma sencilla el procesamiento de documentos.
 
 ## Objetivos
 Nuestro objetivo es desarrollar una herramienta simple y funcional que permita procesar archivos PDF y obtener su contenido de forma rápida y eficiente.
 
 ## Funcionalidades
-- Permite extraer texto desde archivos pdf
-- Facilita el manejo de informacion contenida en documentos
+- Permite extraer texto desde archivos PDF.
+- Facilita el manejo de información contenida en documentos.
+- Persistencia en base de datos para no reprocesar archivos idénticos (Deduplicación por Checksum).
+- Interfaz gráfica (GUI) para selección de archivos y descarga directa en formato `.txt`.
+- Procesamiento OCR para extraer texto de imágenes incrustadas.
 
 ## Arquitectura
-El proyecto funciona como una API HTTP sobre FastAPI.
+El proyecto funciona con una arquitectura cliente-servidor:
 
-- Capa de presentación: endpoints de FastAPI definidos en `app/main.py`.
-- Capa de lógica: procesamiento y extracción de texto en `app/services/pdf_service.py`.
-- Capa de datos: actualmente no persiste en base de datos; el texto se procesa en memoria y se devuelve en la respuesta.
+- **Capa de presentación (Frontend):** Interfaz de escritorio desarrollada con Tkinter (`app/interface.py`).
+- **Capa de presentación (Backend):** Endpoints de FastAPI definidos en `app/main.py`.
+- **Capa de lógica:** Procesamiento, cálculo de checksums y extracción de texto en `app/services/pdf_service.py`.
+- **Capa de datos:** Los documentos y sus textos extraídos se persisten en **MongoDB** para acceso rápido e histórico (`app/repositories/document_repository.py`).
 
 ## Estructura
-- `app/main.py`: aplicación FastAPI y endpoints.
-- `app/services/pdf_service.py`: lógica de extracción de texto y OCR.
-- `app/settings.py`: configuración de la aplicación.
-- `tests/`: pruebas automatizadas.
+- `app/interface.py`: Interfaz gráfica de usuario.
+- `app/main.py`: Aplicación FastAPI y endpoints.
+- `app/services/`: Lógica de extracción de texto, OCR y creación de documentos.
+- `app/repositories/`: Lógica de conexión a la base de datos MongoDB.
+- `app/settings.py`: Configuración de la aplicación.
+- `tests/`: Pruebas automatizadas.
+- `start.bat` / `start.sh`: Scripts para levantar el proyecto automáticamente.
 
 ## Tecnologías usadas
-- Python 3.12+
-- FastAPI
-- Uvicorn
-- UV
-- pypdf
-- PyMuPDF
-- OCRmyPDF
+- Python 3.10+
+- FastAPI & Uvicorn
+- UV (Gestor de dependencias)
+- PyMuPDF (`fitz`)
+- pytesseract & Pillow (Para OCR de imágenes)
+- pymongo (Base de datos)
 - python-multipart
-
-> MongoDB es una mejora futura; actualmente no está integrada en el código.
+- Tkinter (Frontend)
 
 > Se planea resumen por IA
 
-> Se planea devolucíon como `.txt`
-
-## Instalación
+## Requisitos Previos e Instalación
 Este proyecto utiliza **`uv`** para gestionar dependencias.
 
+**Requisitos del sistema:**
+1. **MongoDB** debe estar instalado y corriendo en tu máquina (por defecto en el puerto `27017`).
+[Descargar MongoDB](https://www.mongodb.com/try/download/community)
+2. **Tesseract OCR** debe estar instalado en tu sistema operativo para que la extracción de texto en imágenes funcione correctamente.
+[Descargar Tesseract](https://github.com/tesseract-ocr/tesseract/releases/download/5.5.0/tesseract-ocr-w64-setup-5.5.0.20241111.exe)
+
+**Instalación:**
 1. Instalar `uv` (si no está instalado):
    ```bash
    pip install uv
    ```
 
 2. Sincronizar el entorno virtual e instalar las dependencias:
-   ```bash
-   uv sync
-   ```
+    ```bash
+    uv sync
+    ```
 
-3. Activar el entorno virtual:
-   ```bash
-   # En Windows
-   .venv\Scripts\activate
-   
-   # En macOS/Linux
-   source .venv/bin/activate
-   ```
-
-## API
-- `GET /health`
-  - Retorna `{ "status": "ok" }`.
-- `POST /documents/upload`
-  - Campo `file`: archivo PDF.
-  - Respuestas posibles:
-    - `200`: texto extraído y metadatos.
-    - `400`: archivo vacío, contenido inválido o `content_type` incorrecto.
-    - `413`: archivo demasiado grande.
-  - Retorna:
-    - `filename`
-    - `content_type`
-    - `size_bytes`
-    - `extracted_text`
-    - `status`
 
 ## Uso
-Este proyecto se ejecuta como una API web con FastAPI.
 
-Para iniciar el servidor en modo desarrollo:
+El proyecto cuenta con scripts de arranque que inicializan el entorno virtual, encienden el servidor backend (FastAPI) en segundo plano y abren la interfaz gráfica (Tkinter) automáticamente.
 
-```bash
-uv run uvicorn app.main:app --reload
+Para iniciar el proyecto completo, ejecuta el script correspondiente a tu sistema operativo en la raíz del proyecto:
+
+**En Windows:**
+
+```cmd
+start.bat
 ```
 
-Para subir un PDF y extraer su texto, realiza un `POST` al endpoint `/documents/upload` con el archivo en un campo `file`.
-
-Ejemplo con `curl`:
+**En Linux / macOS:**
 
 ```bash
-curl -X POST "http://127.0.0.1:8000/documents/upload" \
-  -F "file=@documento.pdf"
+./start.sh
 ```
-> Nota: la interfaz de usuario aún está en desarrollo. Actualmente la interacción es por `curl` o cliente HTTP; está planeado un HTML sencillo para la carga de PDFs y la visualización del texto extraído.
+
+## API
+
+Si deseas usar el backend de forma independiente sin la interfaz, estos son los endpoints disponibles:
+
+* `GET /health`
+  * Retorna `{ "status": "ok" }`.
+
+
+* `POST /documents/upload`
+  * Campo `file`: archivo PDF.
+  * Respuestas posibles:
+  * `200`: texto extraído y metadatos.
+  * `400`: archivo vacío, contenido inválido o `content_type` incorrecto.
+  * `413`: archivo demasiado grande.
+
+
+  * Retorna: `filename`, `content_type`, `size_bytes`, `extracted_text`, `status`.
+
+
+* `GET /documents/by-checksum/{checksum}`
+  * Retorna un documento previamente procesado buscando por su hash SHA-256.
+
+
+* `GET /documents/{document_id}/download`
+  * Descarga directamente el texto extraído de un documento como un archivo `.txt`.
+
+
 
 ## Configuración
-- `APP_MAX_PDF_SIZE_BYTES`: límite máximo de tamaño de PDF en bytes. Por defecto es `5242880` (5 MB).
+
+Las siguientes variables de entorno (o archivo `.env`) configuran el proyecto:
+
+* `APP_MAX_PDF_SIZE_BYTES`: límite máximo de tamaño de PDF en bytes. Por defecto es `5242880` (5 MB).
+* `MONGODB_URI`: URI de conexión a la base de datos (por defecto `mongodb://localhost:27017`).
+* `MONGODB_DB_NAME`: Nombre de la base de datos (por defecto `pdf-extractext`).
 
 ## Pruebas
-Ejecuta las pruebas con:
+
+El proyecto cuenta con una cobertura exhaustiva de pruebas (unitarias, de integración y mocks de interfaz). Ejecuta las pruebas con:
 
 ```bash
 uv run pytest
 ```
-
