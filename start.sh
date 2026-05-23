@@ -5,6 +5,7 @@ echo "  Iniciando PDF Extractext"
 echo "========================================="
 
 source venv/bin/activate
+# source venv/bin/activate.fish (si usás fish <- goated)
 
 echo "[INFO] Asegurate de que MongoDB esté corriendo en el puerto 27017..."
 
