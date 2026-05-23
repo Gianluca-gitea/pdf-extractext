@@ -155,3 +155,19 @@ def test_get_document_by_checksum_returns_404_when_missing(monkeypatch) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Documento no encontrado."}
+
+
+def test_upload_pdf_rejects_empty_file():
+    files = {"file": ("vacio.pdf", b"", "application/pdf")}
+
+    response = client.post("/documents/upload", files=files)
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": main_module.EMPTY_FILE_ERROR_DETAIL}
+
+
+def test_download_document_rejects_invalid_object_id():
+    response = client.get("/documents/id-completamente-invalido/download")
+
+    assert response.status_code == 400
+    assert response.json() == {"detail": "ID de documento inválido."}

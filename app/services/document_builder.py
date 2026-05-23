@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
 
 def construir_documento(
@@ -11,6 +15,15 @@ def construir_documento(
     estado: str = "ok",
     error: str | None = None,
 ) -> dict:
+
+    logger.debug(
+        "Building document dict: pdf_nombre=%s checksum=%s text_chars=%d status=%s",
+        pdf_nombre,
+        checksum_archivo,
+        len(texto_extraido),
+        estado
+    )
+
     return {
         "pdf_nombre": pdf_nombre,
         "txt_contenido": texto_extraido,
