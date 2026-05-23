@@ -1,8 +1,9 @@
 from dataclasses import replace
-from io import BytesIO
+from unittest.mock import MagicMock
 
+from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
-from pypdf import PdfWriter
+import fitz
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
@@ -12,16 +13,23 @@ client = TestClient(main_module.app)
 
 
 def _build_valid_pdf_bytes() -> bytes:
-    writer = PdfWriter()
-    writer.add_blank_page(width=200, height=200)
-    buffer = BytesIO()
-    writer.write(buffer)
-    return buffer.getvalue()
+    doc = fitz.open()
+    doc.new_page(width=200, height=200)
+    return doc.write()
 
 
-def test_upload_pdf_accepts_real_file() -> None:
+def test_upload_pdf_accepts_real_file(monkeypatch) -> None:
     pdf_bytes = _build_valid_pdf_bytes()
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
+    process_mock = MagicMock(
+        return_value={
+            "document_id": "507f1f77bcf86cd799439011",
+            "document": {
+                "txt_contenido": "",
+            },
+        }
+    )
+    monkeypatch.setattr(main_module, "process_pdf_upload", process_mock)
 
     response = client.post("/documents/upload", files=files)
 
@@ -34,6 +42,29 @@ def test_upload_pdf_accepts_real_file() -> None:
     assert payload["extracted_text"] == ""
 
 
+def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch) -> None:
+    pdf_bytes = _build_valid_pdf_bytes()
+    files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
+    process_mock = MagicMock(
+        return_value={
+            "document_id": "507f1f77bcf86cd799439011",
+            "document": {
+                "txt_contenido": "texto desde service",
+            },
+        }
+    )
+    monkeypatch.setattr(main_module, "process_pdf_upload", process_mock)
+
+    response = client.post("/documents/upload", files=files)
+
+    assert response.status_code == 200
+    process_mock.assert_called_once_with(
+        file_name="documento.pdf",
+        file_bytes=pdf_bytes,
+    )
+    assert response.json()["extracted_text"] == "texto desde service"
+
+
 def test_upload_pdf_rejects_non_pdf_file() -> None:
     files = {"file": ("texto.txt", b"hola", "text/plain")}
 
@@ -43,7 +74,11 @@ def test_upload_pdf_rejects_non_pdf_file() -> None:
     assert response.json() == {"detail": main_module.INVALID_CONTENT_TYPE_ERROR_DETAIL}
 
 
-def test_upload_pdf_rejects_invalid_pdf_content() -> None:
+def test_upload_pdf_rejects_invalid_pdf_content(monkeypatch) -> None:
+    process_mock = MagicMock()
+    process_mock.find_by_checksum.return_value = None
+    monkeypatch.setattr(pdf_service_module, "DocumentRepository", lambda: process_mock)
+
     files = {"file": ("falso.pdf", b"esto no es un pdf", "application/pdf")}
 
     response = client.post("/documents/upload", files=files)
@@ -61,3 +96,62 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
 
     assert response.status_code == 413
     assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
+
+
+def test_download_document_returns_txt_attachment(monkeypatch) -> None:
+    document_id = ObjectId("507f1f77bcf86cd799439011")
+    repository = MagicMock()
+    repository.find_by_id.return_value = {
+        "_id": document_id,
+        "pdf_nombre": "documento.pdf",
+        "txt_contenido": "texto descargable",
+    }
+
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get(f"/documents/{document_id}/download")
+
+    assert response.status_code == 200
+    assert response.text == "texto descargable"
+    assert response.headers["content-disposition"] == 'attachment; filename="documento.pdf.txt"'
+    assert response.headers["content-type"].startswith("text/plain")
+
+
+def test_download_document_returns_404_for_missing_document(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_id.return_value = None
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/507f1f77bcf86cd799439011/download")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Documento no encontrado."}
+
+
+def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = {
+        "_id": ObjectId("507f1f77bcf86cd799439011"),
+        "pdf_nombre": "documento.pdf",
+        "txt_contenido": "texto existente",
+    }
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/by-checksum/checksum123")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["document_id"] == "507f1f77bcf86cd799439011"
+    assert body["document"]["_id"] == "507f1f77bcf86cd799439011"
+    assert body["document"]["txt_contenido"] == "texto existente"
+
+
+def test_get_document_by_checksum_returns_404_when_missing(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = None
+    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+
+    response = client.get("/documents/by-checksum/checksum123")
+
+    assert response.status_code == 404
+    assert response.json() == {"detail": "Documento no encontrado."}

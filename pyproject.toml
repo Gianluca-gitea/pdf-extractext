@@ -1,19 +1,32 @@
 [project]
 name = "pdf-extractext-api"
 version = "0.1.0"
+description = "Servicio FastAPI para extracción de texto de PDFs"
 readme = "README.md"
-dependencies = [
-    "fastapi==0.115.0",
-    "uvicorn[standard]==0.30.6",
-    "httpx==0.27.2",
-    "python-multipart",
-    "PyMuPDF",
-    "pytesseract"
-]
 requires-python = ">=3.12"
+authors = [{name = "PDF Extract", email = "contact@pdfextract.local"}]
+license = {text = "MIT"}
+
+dependencies = [
+    "fastapi>=0.120.0",
+    "uvicorn[standard]>=0.32.0",
+    "httpx==0.27.2",
+    "python-multipart>=0.0.6",
+    "pymupdf>=1.25.0",
+    "Pillow>=10.0.0",
+    "pymongo==4.17.0",
+    "pytesseract>=0.3.13",
+    "python-dotenv==1.2.2"
+]
 
 [project.optional-dependencies]
-dev = ["pytest==8.3.3"]
+dev = [
+    "pytest==9.0.3",
+    "pytest-cov==4.1.0",
+    "black==26.3.1",
+    "ruff==0.3.0",
+    "mypy==1.8.0"
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -24,3 +37,53 @@ packages = ["app"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "--strict-markers -v"
+markers = [
+    "unit: unit tests",
+    "integration: integration tests"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py312"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  # directories
+  \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+select = ["E", "F", "W", "I", "N"]
+exclude = [".venv", "build", "dist", "__pycache__"]
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
