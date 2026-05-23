@@ -4,13 +4,18 @@ echo "========================================="
 echo "  Iniciando PDF Extractext"
 echo "========================================="
 
-source venv/bin/activate
-# source venv/bin/activate.fish (si usás fish <- goated)
+if [ ! -d ".venv" ]; then
+    echo "[INFO] No se encontró el entorno virtual '.venv'."
+    echo "[INFO] Creando entorno e instalando dependencias con uv (vuela)..."
+    uv venv
+    uv pip install fastapi uvicorn pymongo PyMuPDF python-dotenv requests python-multipart
+    echo "[INFO] Instalación completada."
+fi
 
 echo "[INFO] Asegurate de que MongoDB esté corriendo en el puerto 27017..."
 
 echo "[INFO] Iniciando el backend..."
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload &
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload &
 BACKEND_PID=$!
 
 echo "[INFO] Esperando 2 segundos para que el servidor inicie..."
