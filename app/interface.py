@@ -218,5 +218,6 @@ texto_resultado.pack(
 )
 
 # Ejecutar ventana
-logger.info("Entering Tkinter main loop")
-ventana.mainloop()
+if __name__ == "__main__":
+    logger.info("Entering Tkinter main loop")
+    ventana.mainloop()
