@@ -50,7 +50,7 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
         try:
             from PIL import Image
             import pytesseract
-        except Exception as exc:  # pragma: no cover - environment dependent
+        except Exception as exc:
             logger.warning("OCR dependencies not available: %s", exc)
             return ""
 
@@ -156,7 +156,10 @@ def process_pdf_upload(
         )
 
         texto_extraido = existing.get("txt_contenido", "")
-        _save_text_to_disk(file_name, texto_extraido)
+        
+        # Deshabilitado para evitar guardado automático local en el backend
+        # _save_text_to_disk(file_name, texto_extraido)
+        
         return {
             "document_id": str(existing.get("_id", "")),
             "document": existing,
@@ -169,7 +172,8 @@ def process_pdf_upload(
         file_name,
     )
 
-    _save_text_to_disk(file_name, texto_extraido)
+    # Deshabilitado para evitar guardado automático local en el backend
+    # _save_text_to_disk(file_name, texto_extraido)
 
     duration_ms = int((perf_counter() - started_at) * 1000)
 
