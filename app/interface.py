@@ -5,6 +5,7 @@ import requests
 archivo_pdf = None
 texto_extraido_global = ""
 
+
 # Seleccionar PDF
 def seleccionar_pdf():
     global archivo_pdf
@@ -18,6 +19,7 @@ def seleccionar_pdf():
         label_archivo.config(
             text=f"PDF seleccionado:\n{archivo}"
         )
+
 
 # Enviar PDF al backend
 def extraer_texto():
@@ -72,6 +74,7 @@ def extraer_texto():
             str(e)
         )
 
+
 # Descargar TXT
 def descargar_txt():
 
@@ -104,6 +107,7 @@ def descargar_txt():
             "Éxito",
             "TXT descargado correctamente."
         )
+
 
 # Ventana principal
 ventana = tk.Tk()
