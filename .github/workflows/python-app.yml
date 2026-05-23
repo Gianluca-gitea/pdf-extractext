@@ -28,8 +28,11 @@ jobs:
         python-version: "3.10"
     - name: Install dependencies
       run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        
         python -m pip install --upgrade pip
-        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest requests
+        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
@@ -41,5 +44,6 @@ jobs:
         flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
     - name: Test with pytest
       run: |
-        pytest
+        xvfb-run pytest
 
+        
