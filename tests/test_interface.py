@@ -1,4 +1,3 @@
-import pytest
 import requests
 import tkinter as tk
 from unittest.mock import MagicMock
@@ -23,7 +22,6 @@ def test_extraer_texto_exito(mocker):
     interface.archivo_pdf = "archivo_ficticio.pdf"
     interface.texto_extraido_global = ""
     interface.texto_resultado.delete("1.0", tk.END)
-
 
     mocker.patch("builtins.open", mocker.mock_open(read_data=b"contenido pdf fake"))
 

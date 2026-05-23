@@ -1,6 +1,7 @@
 from app.settings import get_settings
 from app.settings import DEFAULT_MAX_PDF_SIZE_BYTES
 
+
 def test_get_settings_reads_environment_variables(monkeypatch) -> None:
     monkeypatch.setenv("APP_NAME", "PDF Extractext Test")
     monkeypatch.setenv("APP_VERSION", "9.9.9")

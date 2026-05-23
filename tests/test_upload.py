@@ -165,6 +165,7 @@ def test_upload_pdf_rejects_empty_file():
     assert response.status_code == 400
     assert response.json() == {"detail": main_module.EMPTY_FILE_ERROR_DETAIL}
 
+
 def test_download_document_rejects_invalid_object_id():
     response = client.get("/documents/id-completamente-invalido/download")
 
