@@ -156,10 +156,10 @@ def process_pdf_upload(
         )
 
         texto_extraido = existing.get("txt_contenido", "")
-        
+
         # Deshabilitado para evitar guardado automático local en el backend
         # _save_text_to_disk(file_name, texto_extraido)
-        
+
         return {
             "document_id": str(existing.get("_id", "")),
             "document": existing,
