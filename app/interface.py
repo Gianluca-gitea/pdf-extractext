@@ -21,7 +21,6 @@ def seleccionar_pdf():
 
 # Enviar PDF al backend
 def extraer_texto():
-    global archivo_pdf
     global texto_extraido_global
 
     if not archivo_pdf:
@@ -75,8 +74,6 @@ def extraer_texto():
 
 # Descargar TXT
 def descargar_txt():
-
-    global texto_extraido_global
 
     if not texto_extraido_global:
 
