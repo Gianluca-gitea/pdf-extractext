@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import filedialog, messagebox
 import requests
+from requests.exceptions import ConnectionError
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,6 +76,12 @@ def extraer_texto():
                 response.text
             )
 
+    except ConnectionError:
+        logger.error("Failed to connect to backend at http://127.0.0.1:8000")
+        messagebox.showerror(
+            "Error de Conexión",
+            "No se pudo conectar con el servidor backend.\n\nAsegurate de que Uvicorn esté corriendo en el puerto 8000."
+        )
     except Exception as e:
         logger.error("Exception occurred during text extraction: %s", e, exc_info=True)
         messagebox.showerror(
