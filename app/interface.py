@@ -206,7 +206,7 @@ def renombrar_historial(tree):
         "Nuevo nombre del PDF:",
         initialvalue=nombre_actual
     )
-    
+
     if nuevo_nombre and nuevo_nombre != nombre_actual:
         logger.info(
             "Attempting to rename document id: %s from '%s' to '%s'",

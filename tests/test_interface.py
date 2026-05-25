@@ -109,6 +109,7 @@ def test_extraer_texto_falla_por_permisos_de_archivo(mocker):
     assert args[0] == "Error"
     assert "Permiso denegado" in args[1]
 
+
 def test_cargar_lista_historial_exito(mocker):
     mock_tree = MagicMock()
     mock_tree.get_children.return_value = ["row1"]
@@ -226,7 +227,7 @@ def test_abrir_historial_crea_ui(mocker):
     mocker.patch('app.interface.ttk.Treeview')
     mocker.patch('app.interface.tk.Frame')
     mocker.patch('app.interface.tk.Button')
-    
+
     mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
 
     interface.abrir_historial()
