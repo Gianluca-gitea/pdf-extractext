@@ -70,24 +70,23 @@ def extraer_texto():
             texto_resultado.insert(tk.END, texto_extraido_global)
 
         else:
-            logger.error("Backend request failed: status_code=%d response=%s", response.status_code, response.text)
-            messagebox.showerror(
-                "Error",
+            logger.error(
+                "Backend request failed: status_code=%d response=%s",
+                response.status_code,
                 response.text
             )
+            messagebox.showerror("Error", response.text)
 
     except ConnectionError:
         logger.error("Failed to connect to backend at http://127.0.0.1:8000")
         messagebox.showerror(
             "Error de Conexión",
-            "No se pudo conectar con el servidor backend.\n\nAsegurate de que Uvicorn esté corriendo en el puerto 8000."
+            "No se pudo conectar con el servidor backend.\n\n"
+            "Asegurate de que Uvicorn esté corriendo en el puerto 8000."
         )
     except Exception as e:
         logger.error("Exception occurred during text extraction: %s", e, exc_info=True)
-        messagebox.showerror(
-            "Error",
-            str(e)
-        )
+        messagebox.showerror("Error", str(e))
 
 
 # Descargar TXT
@@ -128,6 +127,146 @@ def descargar_txt():
         logger.debug("TXT save dialog cancelled by user")
 
 
+def cargar_lista_historial(tree):
+    logger.debug("Fetching document history from backend")
+    for row in tree.get_children():
+        tree.delete(row)
+    try:
+        response = requests.get("http://127.0.0.1:8000/documents?limit=50")
+        if response.status_code == 200:
+            docs = response.json().get("items", [])
+            logger.info("History loaded successfully: %d items retrieved", len(docs))
+            for d in docs:
+                fecha = d.get("created_at", "")[:16].replace("T", " ")
+                tree.insert(
+                    "",
+                    tk.END,
+                    values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
+                )
+        else:
+            logger.error(
+                "Failed to load history: status_code=%d response=%s",
+                response.status_code,
+                response.text
+            )
+            messagebox.showerror("Error", "No se pudo cargar el historial.")
+    except ConnectionError as e:
+        logger.error("Connection error while fetching history: %s", e)
+        messagebox.showerror("Error", "Servidor desconectado.")
+
+
+def ver_texto_historial(tree, ventana_historial):
+    global texto_extraido_global
+    seleccion = tree.selection()
+    if not seleccion:
+        logger.warning("Load text attempted but no document selected")
+        messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
+        return
+
+    doc_id = tree.item(seleccion[0])['values'][0]
+    logger.info("Fetching text for document id: %s", doc_id)
+
+    try:
+        resp = requests.get(f"http://127.0.0.1:8000/documents/{doc_id}?include_text=true")
+        if resp.status_code == 200:
+            data = resp.json().get("document", {})
+            texto = data.get("txt_contenido", "")
+
+            texto_extraido_global = texto
+            texto_resultado.delete("1.0", tk.END)
+            texto_resultado.insert(tk.END, texto_extraido_global)
+
+            logger.info("Text successfully loaded into main window for document id: %s", doc_id)
+            messagebox.showinfo("Éxito", "Texto cargado en la pantalla principal.")
+            ventana_historial.destroy()
+        else:
+            logger.error(
+                "Failed to load document text: status_code=%d response=%s",
+                resp.status_code,
+                resp.text
+            )
+            messagebox.showerror("Error", "No se pudo cargar el documento.")
+    except ConnectionError as e:
+        logger.error("Connection error while fetching document text: %s", e)
+        messagebox.showerror("Error", "Servidor desconectado.")
+
+
+def renombrar_historial(tree):
+    seleccion = tree.selection()
+    if not seleccion:
+        logger.warning("Rename attempted but no document selected")
+        messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
+        return
+
+    doc_id = tree.item(seleccion[0])['values'][0]
+    nombre_actual = tree.item(seleccion[0])['values'][1]
+
+    nuevo_nombre = simpledialog.askstring(
+        "Renombrar",
+        "Nuevo nombre del PDF:",
+        initialvalue=nombre_actual
+    )
+    
+    if nuevo_nombre and nuevo_nombre != nombre_actual:
+        logger.info(
+            "Attempting to rename document id: %s from '%s' to '%s'",
+            doc_id,
+            nombre_actual,
+            nuevo_nombre
+        )
+        try:
+            resp = requests.patch(
+                f"http://127.0.0.1:8000/documents/{doc_id}",
+                json={"pdf_nombre": nuevo_nombre}
+            )
+            if resp.status_code == 200:
+                logger.info("Document successfully renamed")
+                cargar_lista_historial(tree)
+            else:
+                logger.error(
+                    "Failed to rename document: status_code=%d response=%s",
+                    resp.status_code,
+                    resp.text
+                )
+                messagebox.showerror("Error", f"Fallo al renombrar: {resp.json().get('detail')}")
+        except ConnectionError as e:
+            logger.error("Connection error while renaming document: %s", e)
+            messagebox.showerror("Error", "Servidor desconectado.")
+    else:
+        logger.debug("Rename dialog cancelled by user or name unchanged")
+
+
+def eliminar_historial(tree):
+    seleccion = tree.selection()
+    if not seleccion:
+        logger.warning("Delete attempted but no document selected")
+        messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
+        return
+
+    doc_id = tree.item(seleccion[0])['values'][0]
+    msg = "¿Seguro que querés eliminar este documento de la base de datos?"
+    if messagebox.askyesno("Confirmar", msg):
+        logger.info("Attempting to delete document id: %s", doc_id)
+        try:
+            resp = requests.delete(f"http://127.0.0.1:8000/documents/{doc_id}")
+            if resp.status_code == 200:
+                logger.info("Document successfully deleted")
+                cargar_lista_historial(tree)
+            else:
+                logger.error(
+                    "Failed to delete document: status_code=%d response=%s",
+                    resp.status_code,
+                    resp.text
+                )
+                messagebox.showerror("Error", "No se pudo eliminar.")
+        except ConnectionError as e:
+            logger.error("Connection error while deleting document: %s", e)
+            messagebox.showerror("Error", "Servidor desconectado.")
+    else:
+        logger.debug("Delete confirmation cancelled by user")
+
+
+# Abrir Ventana de Historial
 def abrir_historial():
     logger.info("Opening document history window")
     ventana_historial = tk.Toplevel(ventana)
@@ -142,133 +281,59 @@ def abrir_historial():
     tree.heading("Nombre", text="Nombre del Archivo")
     tree.heading("Estado", text="Estado")
     tree.heading("Fecha", text="Fecha de Creación")
-    
+
     tree.column("ID", width=200, anchor=tk.CENTER)
     tree.column("Nombre", width=350, anchor=tk.W)
     tree.column("Estado", width=100, anchor=tk.CENTER)
     tree.column("Fecha", width=150, anchor=tk.CENTER)
-    
+
     tree.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
 
-    # Funciones de la tabla
-    def cargar_lista():
-        logger.debug("Fetching document history from backend")
-        for row in tree.get_children():
-            tree.delete(row)
-        try:
-            response = requests.get("http://127.0.0.1:8000/documents?limit=50")
-            if response.status_code == 200:
-                docs = response.json().get("items", [])
-                logger.info("History loaded successfully: %d items retrieved", len(docs))
-                for d in docs:
-                    fecha = d.get("created_at", "")[:16].replace("T", " ")
-                    tree.insert("", tk.END, values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha))
-            else:
-                logger.error("Failed to load history: status_code=%d response=%s", response.status_code, response.text)
-                messagebox.showerror("Error", "No se pudo cargar el historial.")
-        except ConnectionError as e:
-            logger.error("Connection error while fetching history: %s", e)
-            messagebox.showerror("Error", "Servidor desconectado.")
-
-    def ver_texto():
-        global texto_extraido_global
-        seleccion = tree.selection()
-        if not seleccion:
-            logger.warning("Load text attempted but no document selected")
-            messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
-            return
-        
-        doc_id = tree.item(seleccion[0])['values'][0]
-        logger.info("Fetching text for document id: %s", doc_id)
-        
-        try:
-            resp = requests.get(f"http://127.0.0.1:8000/documents/{doc_id}?include_text=true")
-            if resp.status_code == 200:
-                data = resp.json().get("document", {})
-                texto = data.get("txt_contenido", "")
-                
-                texto_extraido_global = texto
-                texto_resultado.delete("1.0", tk.END)
-                texto_resultado.insert(tk.END, texto_extraido_global)
-                
-                logger.info("Text successfully loaded into main window for document id: %s", doc_id)
-                messagebox.showinfo("Éxito", "Texto cargado en la pantalla principal.")
-                ventana_historial.destroy()
-            else:
-                logger.error("Failed to load document text: status_code=%d response=%s", resp.status_code, resp.text)
-                messagebox.showerror("Error", "No se pudo cargar el documento.")
-        except ConnectionError as e:
-            logger.error("Connection error while fetching document text: %s", e)
-            messagebox.showerror("Error", "Servidor desconectado.")
-
-    def renombrar():
-        seleccion = tree.selection()
-        if not seleccion:
-            logger.warning("Rename attempted but no document selected")
-            messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
-            return
-        
-        doc_id = tree.item(seleccion[0])['values'][0]
-        nombre_actual = tree.item(seleccion[0])['values'][1]
-        
-        nuevo_nombre = simpledialog.askstring("Renombrar", "Nuevo nombre del PDF:", initialvalue=nombre_actual)
-        if nuevo_nombre and nuevo_nombre != nombre_actual:
-            logger.info("Attempting to rename document id: %s from '%s' to '%s'", doc_id, nombre_actual, nuevo_nombre)
-            try:
-                resp = requests.patch(f"http://127.0.0.1:8000/documents/{doc_id}", json={"pdf_nombre": nuevo_nombre})
-                if resp.status_code == 200:
-                    logger.info("Document successfully renamed")
-                    cargar_lista()
-                else:
-                    logger.error("Failed to rename document: status_code=%d response=%s", resp.status_code, resp.text)
-                    messagebox.showerror("Error", f"Fallo al renombrar: {resp.json().get('detail')}")
-            except ConnectionError as e:
-                logger.error("Connection error while renaming document: %s", e)
-                messagebox.showerror("Error", "Servidor desconectado.")
-        else:
-            logger.debug("Rename dialog cancelled by user or name unchanged")
-
-    def eliminar():
-        seleccion = tree.selection()
-        if not seleccion:
-            logger.warning("Delete attempted but no document selected")
-            messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
-            return
-        
-        doc_id = tree.item(seleccion[0])['values'][0]
-        if messagebox.askyesno("Confirmar", "¿Seguro que querés eliminar este documento de la base de datos?"):
-            logger.info("Attempting to delete document id: %s", doc_id)
-            try:
-                resp = requests.delete(f"http://127.0.0.1:8000/documents/{doc_id}")
-                if resp.status_code == 200:
-                    logger.info("Document successfully deleted")
-                    cargar_lista()
-                else:
-                    logger.error("Failed to delete document: status_code=%d response=%s", resp.status_code, resp.text)
-                    messagebox.showerror("Error", "No se pudo eliminar.")
-            except ConnectionError as e:
-                logger.error("Connection error while deleting document: %s", e)
-                messagebox.showerror("Error", "Servidor desconectado.")
-        else:
-            logger.debug("Delete confirmation cancelled by user")
-
-    # Botones del panel de historial
     panel_botones = tk.Frame(ventana_historial, bg="#1e1e1e")
     panel_botones.pack(pady=10)
 
-    btn_ver = tk.Button(panel_botones, text="Cargar Texto", command=ver_texto, bg="#2196F3", fg="black", font=("Arial", 10, "bold"))
+    btn_ver = tk.Button(
+        panel_botones,
+        text="Cargar Texto",
+        command=lambda: ver_texto_historial(tree, ventana_historial),
+        bg="#2196F3",
+        fg="black",
+        font=("Arial", 10, "bold")
+    )
     btn_ver.pack(side=tk.LEFT, padx=5)
 
-    btn_renombrar = tk.Button(panel_botones, text="Renombrar", command=renombrar, bg="#FFEB3B", fg="black", font=("Arial", 10, "bold"))
+    btn_renombrar = tk.Button(
+        panel_botones,
+        text="Renombrar",
+        command=lambda: renombrar_historial(tree),
+        bg="#FFEB3B",
+        fg="black",
+        font=("Arial", 10, "bold")
+    )
     btn_renombrar.pack(side=tk.LEFT, padx=5)
 
-    btn_eliminar = tk.Button(panel_botones, text="Eliminar", command=eliminar, bg="#F44336", fg="black", font=("Arial", 10, "bold"))
+    btn_eliminar = tk.Button(
+        panel_botones,
+        text="Eliminar",
+        command=lambda: eliminar_historial(tree),
+        bg="#F44336",
+        fg="black",
+        font=("Arial", 10, "bold")
+    )
     btn_eliminar.pack(side=tk.LEFT, padx=5)
 
-    btn_actualizar = tk.Button(panel_botones, text="Actualizar Lista", command=cargar_lista, bg="#4CAF50", fg="black", font=("Arial", 10, "bold"))
+    btn_actualizar = tk.Button(
+        panel_botones,
+        text="Actualizar Lista",
+        command=lambda: cargar_lista_historial(tree),
+        bg="#4CAF50",
+        fg="black",
+        font=("Arial", 10, "bold")
+    )
     btn_actualizar.pack(side=tk.LEFT, padx=5)
 
-    cargar_lista()
+    cargar_lista_historial(tree)
+
 
 # Ventana principal
 logger.info("Initializing Extractor PDF Tkinter UI")
