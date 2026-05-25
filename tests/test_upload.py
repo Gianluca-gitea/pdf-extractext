@@ -100,14 +100,14 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
 
 def test_download_document_returns_txt_attachment(monkeypatch) -> None:
     document_id = ObjectId("507f1f77bcf86cd799439011")
-    repository = MagicMock()
-    repository.find_by_id.return_value = {
+    service = MagicMock()
+    service.get_document_by_id.return_value = {
         "_id": document_id,
         "pdf_nombre": "documento.pdf",
         "txt_contenido": "texto descargable",
     }
 
-    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}/download")
 
@@ -118,9 +118,9 @@ def test_download_document_returns_txt_attachment(monkeypatch) -> None:
 
 
 def test_download_document_returns_404_for_missing_document(monkeypatch) -> None:
-    repository = MagicMock()
-    repository.find_by_id.return_value = None
-    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+    service = MagicMock()
+    service.get_document_by_id.return_value = None
+    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
 
     response = client.get("/documents/507f1f77bcf86cd799439011/download")
 
@@ -129,13 +129,13 @@ def test_download_document_returns_404_for_missing_document(monkeypatch) -> None
 
 
 def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
-    repository = MagicMock()
-    repository.find_by_checksum.return_value = {
+    service = MagicMock()
+    service.get_document_by_checksum.return_value = {
         "_id": ObjectId("507f1f77bcf86cd799439011"),
         "pdf_nombre": "documento.pdf",
         "txt_contenido": "texto existente",
     }
-    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
 
     response = client.get("/documents/by-checksum/checksum123")
 
@@ -147,9 +147,9 @@ def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
 
 
 def test_get_document_by_checksum_returns_404_when_missing(monkeypatch) -> None:
-    repository = MagicMock()
-    repository.find_by_checksum.return_value = None
-    monkeypatch.setattr(main_module, "DocumentRepository", lambda: repository)
+    service = MagicMock()
+    service.get_document_by_checksum.return_value = None
+    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
 
     response = client.get("/documents/by-checksum/checksum123")
 

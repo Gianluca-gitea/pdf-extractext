@@ -12,7 +12,7 @@ def construir_documento(
     texto_extraido: str,
     checksum_archivo: str,
     duracion_ms: int,
-    estado: str = "ok",
+    estado: str = "pendiente",
     error: str | None = None,
 ) -> dict:
 
@@ -33,5 +33,6 @@ def construir_documento(
         "estado": estado,
         "error": error,
         "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
         "duracion_ms": duracion_ms,
     }

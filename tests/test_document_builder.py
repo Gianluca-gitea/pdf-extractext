@@ -34,6 +34,7 @@ class TestDocumentBuilder:
             "estado",
             "error",
             "created_at",
+            "deleted_at",
             "duracion_ms",
         }
 
@@ -80,10 +81,10 @@ class TestDocumentBuilder:
 
         assert result["checksum_algoritmo"] == "sha256"
 
-    def test_construir_documento_default_estado_is_ok(self) -> None:
+    def test_construir_documento_default_estado_is_pendiente(self) -> None:
         result = self._build_document()
 
-        assert result["estado"] == "ok"
+        assert result["estado"] == "pendiente"
 
     def test_construir_documento_custom_estado(self) -> None:
         result = self._build_document(estado="error")
@@ -110,6 +111,11 @@ class TestDocumentBuilder:
         result = self._build_document()
 
         assert isinstance(result["created_at"], datetime)
+
+    def test_construir_documento_deleted_at_is_none(self) -> None:
+        result = self._build_document()
+
+        assert result["deleted_at"] is None
 
     def test_construir_documento_preserves_duracion_ms(self) -> None:
         duracion_ms = 1500
