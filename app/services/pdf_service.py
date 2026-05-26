@@ -182,6 +182,7 @@ def process_pdf_upload(
         texto_extraido=texto_extraido,
         checksum_archivo=checksum,
         duracion_ms=duration_ms,
+        estado="ok"
     )
 
     inserted_id = active_repository.save_document(document)

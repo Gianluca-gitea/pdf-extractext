@@ -108,3 +108,128 @@ def test_extraer_texto_falla_por_permisos_de_archivo(mocker):
     args, _ = mock_showerror.call_args
     assert args[0] == "Error"
     assert "Permiso denegado" in args[1]
+
+
+def test_cargar_lista_historial_exito(mocker):
+    mock_tree = MagicMock()
+    mock_tree.get_children.return_value = ["row1"]
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {
+        "items": [
+            {"_id": "111", "pdf_nombre": "test.pdf", "estado": "ok", "created_at": "2026-05-25T10:00:00"}
+        ]
+    }
+    mock_get = mocker.patch('app.interface.requests.get', return_value=mock_response)
+
+    interface.cargar_lista_historial(mock_tree)
+
+    mock_tree.delete.assert_called_once_with("row1")
+    mock_get.assert_called_once_with("http://127.0.0.1:8000/documents?limit=50")
+    mock_tree.insert.assert_called_with("", tk.END, values=("111", "test.pdf", "ok", "2026-05-25 10:00"))
+
+
+def test_ver_texto_historial_exito(mocker):
+    mock_tree = MagicMock()
+    mock_tree.selection.return_value = ["item1"]
+    mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
+    mock_ventana = MagicMock()
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"document": {"txt_contenido": "texto recuperado"}}
+    mock_get = mocker.patch('app.interface.requests.get', return_value=mock_response)
+    mock_showinfo = mocker.patch('app.interface.messagebox.showinfo')
+
+    interface.texto_resultado.delete("1.0", tk.END)
+
+    interface.ver_texto_historial(mock_tree, mock_ventana)
+
+    mock_get.assert_called_with("http://127.0.0.1:8000/documents/doc_123?include_text=true")
+    assert interface.texto_extraido_global == "texto recuperado"
+    assert interface.texto_resultado.get("1.0", tk.END).strip() == "texto recuperado"
+    mock_showinfo.assert_called_once()
+    mock_ventana.destroy.assert_called_once()
+
+
+def test_renombrar_historial_exito(mocker):
+    mock_tree = MagicMock()
+    mock_tree.selection.return_value = ["item1"]
+    mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
+
+    mocker.patch('app.interface.simpledialog.askstring', return_value="nuevo_nombre.pdf")
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_patch = mocker.patch('app.interface.requests.patch', return_value=mock_response)
+    mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
+
+    interface.renombrar_historial(mock_tree)
+
+    mock_patch.assert_called_with("http://127.0.0.1:8000/documents/doc_123", json={"pdf_nombre": "nuevo_nombre.pdf"})
+    mock_cargar.assert_called_once_with(mock_tree)
+
+
+def test_eliminar_historial_exito(mocker):
+    mock_tree = MagicMock()
+    mock_tree.selection.return_value = ["item1"]
+    mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
+
+    mocker.patch('app.interface.messagebox.askyesno', return_value=True)
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_delete = mocker.patch('app.interface.requests.delete', return_value=mock_response)
+    mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
+
+    interface.eliminar_historial(mock_tree)
+
+    mock_delete.assert_called_with("http://127.0.0.1:8000/documents/doc_123")
+    mock_cargar.assert_called_once_with(mock_tree)
+
+
+def test_historial_acciones_sin_seleccion_muestra_advertencia(mocker):
+    mock_tree = MagicMock()
+    mock_tree.selection.return_value = []
+
+    mock_warning = mocker.patch('app.interface.messagebox.showwarning')
+
+    interface.ver_texto_historial(mock_tree, MagicMock())
+    interface.renombrar_historial(mock_tree)
+    interface.eliminar_historial(mock_tree)
+
+    assert mock_warning.call_count == 3
+
+
+def test_historial_acciones_error_de_conexion(mocker):
+    mock_tree = MagicMock()
+    mock_tree.selection.return_value = ["item1"]
+    mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
+
+    mocker.patch('app.interface.simpledialog.askstring', return_value="nuevo.pdf")
+    mocker.patch('app.interface.messagebox.askyesno', return_value=True)
+
+    mocker.patch('app.interface.requests.get', side_effect=requests.exceptions.ConnectionError("Failed"))
+    mocker.patch('app.interface.requests.patch', side_effect=requests.exceptions.ConnectionError("Failed"))
+    mocker.patch('app.interface.requests.delete', side_effect=requests.exceptions.ConnectionError("Failed"))
+
+    mock_showerror = mocker.patch('app.interface.messagebox.showerror')
+
+    interface.cargar_lista_historial(mock_tree)
+    interface.ver_texto_historial(mock_tree, MagicMock())
+    interface.renombrar_historial(mock_tree)
+    interface.eliminar_historial(mock_tree)
+
+    assert mock_showerror.call_count == 4
+
+
+def test_abrir_historial_crea_ui(mocker):
+    mocker.patch('app.interface.tk.Toplevel')
+    mocker.patch('app.interface.ttk.Treeview')
+    mocker.patch('app.interface.tk.Frame')
+    mocker.patch('app.interface.tk.Button')
+
+    mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
+
+    interface.abrir_historial()
+
+    mock_cargar.assert_called_once()
