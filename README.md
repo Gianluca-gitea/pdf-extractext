@@ -59,13 +59,13 @@ El proyecto funciona con una arquitectura cliente-servidor:
 - pymongo (Base de datos)
 - python-multipart
 - Tkinter (Frontend)
+- *Docker (Opcional)*
 
 > Se planea resumen por IA
 
 ---
 
-## Requisitos Previos e Instalación
-Este proyecto utiliza **`uv`** para gestionar dependencias.
+## Instalación y uso *sin* Docker
 
 **Requisitos del sistema:**
 1. **MongoDB** debe estar instalado y corriendo en tu máquina (por defecto en el puerto `27017`).
@@ -84,9 +84,7 @@ Este proyecto utiliza **`uv`** para gestionar dependencias.
     uv sync
     ```
 
----
-
-## Uso
+**Uso**
 
 El proyecto cuenta con scripts de arranque que inicializan el entorno virtual, encienden el servidor backend (FastAPI) en segundo plano y abren la interfaz gráfica (Tkinter) automáticamente.
 
@@ -102,6 +100,40 @@ start.bat
 
 ```bash
 ./start.sh
+```
+
+---
+
+## Instalación y uso *con* Docker
+
+**Requisitos del sistema:**
+1. **Docker** debe estar instalado y corriendo en tu máquina.
+[Descargar Docker](https://www.docker.com/get-started)
+
+**Instalación:**
+1. Levantar el contenedor:
+```bash
+docker compose up --build
+```
+
+**Uso**
+1. Instalar `uv` (si no está instalado):
+```bash
+pip install uv
+```
+
+2. Abrir la interfaz en otro cmd:
+```bash
+uv run python app/interface.py
+```
+
+**Cerrar y relanzar el contenedor**
+
+El contenedor se puede cerrar con las teclas `Ctrl+C`
+
+El contenedor se vuelve abrir corriendo:
+```bash
+docker compose up
 ```
 
 ---
