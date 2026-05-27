@@ -111,3 +111,8 @@ pip-log.txt
 .python-version
 .scrapy
 .webassets-cache
+
+# Local project files
+tests/
+start.bat
+start.sh

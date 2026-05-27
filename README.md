@@ -1,6 +1,6 @@
 # PDF Extract Text
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14+-blue.svg?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)
 ![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)
 ![Tkinter](https://img.shields.io/badge/UI-Tkinter-lightgrey)
@@ -51,7 +51,7 @@ El proyecto funciona con una arquitectura cliente-servidor:
 ---
 
 ## Tecnologías usadas
-- Python 3.10+
+- Python 3.14+
 - FastAPI & Uvicorn
 - UV (Gestor de dependencias)
 - PyMuPDF (`fitz`)
@@ -59,13 +59,13 @@ El proyecto funciona con una arquitectura cliente-servidor:
 - pymongo (Base de datos)
 - python-multipart
 - Tkinter (Frontend)
+- *Docker (Opcional)*
 
 > Se planea resumen por IA
 
 ---
 
-## Requisitos Previos e Instalación
-Este proyecto utiliza **`uv`** para gestionar dependencias.
+## Instalación y uso *sin* Docker
 
 **Requisitos del sistema:**
 1. **MongoDB** debe estar instalado y corriendo en tu máquina (por defecto en el puerto `27017`).
@@ -84,9 +84,7 @@ Este proyecto utiliza **`uv`** para gestionar dependencias.
     uv sync
     ```
 
----
-
-## Uso
+**Uso**
 
 El proyecto cuenta con scripts de arranque que inicializan el entorno virtual, encienden el servidor backend (FastAPI) en segundo plano y abren la interfaz gráfica (Tkinter) automáticamente.
 
@@ -102,6 +100,40 @@ start.bat
 
 ```bash
 ./start.sh
+```
+
+---
+
+## Instalación y uso *con* Docker
+
+**Requisitos del sistema:**
+1. **Docker** debe estar instalado y corriendo en tu máquina.
+[Descargar Docker](https://www.docker.com/get-started)
+
+**Instalación:**
+1. Levantar el contenedor:
+```bash
+docker compose up --build
+```
+
+**Uso**
+1. Instalar `uv` (si no está instalado):
+```bash
+pip install uv
+```
+
+2. Abrir la interfaz en otro cmd:
+```bash
+uv run python app/interface.py
+```
+
+**Cerrar y relanzar el contenedor**
+
+El contenedor se puede cerrar con las teclas `Ctrl+C`
+
+El contenedor se vuelve abrir corriendo:
+```bash
+docker compose up
 ```
 
 ---
