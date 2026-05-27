@@ -1,6 +1,6 @@
 # PDF Extract Text
 
-![Python](https://img.shields.io/badge/Python-3.10+-blue.svg?logo=python&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.14+-blue.svg?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-005571?logo=fastapi)
 ![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?logo=mongodb&logoColor=white)
 ![Tkinter](https://img.shields.io/badge/UI-Tkinter-lightgrey)
@@ -51,7 +51,7 @@ El proyecto funciona con una arquitectura cliente-servidor:
 ---
 
 ## Tecnologías usadas
-- Python 3.10+
+- Python 3.14+
 - FastAPI & Uvicorn
 - UV (Gestor de dependencias)
 - PyMuPDF (`fitz`)

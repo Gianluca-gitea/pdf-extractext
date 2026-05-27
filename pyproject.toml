@@ -3,7 +3,7 @@ name = "pdf-extractext-api"
 version = "0.1.0"
 description = "Servicio FastAPI para extracción de texto de PDFs"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 authors = [{name = "PDF Extract", email = "contact@pdfextract.local"}]
 license = {text = "MIT"}
 
