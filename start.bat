@@ -13,6 +13,8 @@ IF NOT EXIST ".venv\" (
 
 echo [INFO] Asegurate de que MongoDB este corriendo en el puerto 27017...
 
+uv sync --no-dev
+
 echo [INFO] Iniciando el backend..
 start "PDF Backend Server" cmd /c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
 
