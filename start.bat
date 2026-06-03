@@ -7,13 +7,13 @@ IF NOT EXIST ".venv\" (
     echo [INFO] No se encontro el entorno virtual '.venv'.
     echo [INFO] Creando entorno e instalando dependencias con uv...
     uv venv
-    uv sync --no-dev
+    uv sync --frozen --no-dev
     echo [INFO] Instalacion completada.
 )
 
 echo [INFO] Asegurate de que MongoDB este corriendo en el puerto 27017...
 
-uv sync --no-dev
+uv sync --frozen --no-dev
 
 echo [INFO] Iniciando el backend..
 start "PDF Backend Server" cmd /c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
