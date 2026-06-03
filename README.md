@@ -40,6 +40,23 @@ El proyecto funciona con una arquitectura cliente-servidor:
 ---
 
 ## Estructura
+
+
+```
+.
+├── app
+│   ├── interface.py
+│   ├── main.py
+│   ├── repositories
+│   │   ├── document_repository.py
+│   ├── services
+│   │   ├── checksum_service.py
+│   │   ├── document_builder.py
+│   │   ├── document_service.py
+│   │   ├── pdf_service.py
+└───┴── settings.py
+```
+
 - `app/interface.py`: Interfaz gráfica de usuario.
 - `app/main.py`: Aplicación FastAPI y endpoints.
 - `app/services/`: Lógica de extracción de texto, OCR, gestión de estado y creación de documentos.
