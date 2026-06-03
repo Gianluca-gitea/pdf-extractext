@@ -8,7 +8,7 @@ if [ ! -d ".venv" ]; then
     echo "[INFO] No se encontró el entorno virtual '.venv'."
     echo "[INFO] Creando entorno e instalando dependencias con uv (vuela)..."
     uv venv
-    uv pip install -r pyproject.toml
+    uv sync --no-dev
     echo "[INFO] Instalación completada."
 fi
 

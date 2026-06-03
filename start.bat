@@ -7,7 +7,7 @@ IF NOT EXIST ".venv\" (
     echo [INFO] No se encontro el entorno virtual '.venv'.
     echo [INFO] Creando entorno e instalando dependencias con uv...
     uv venv
-    uv pip install -r pyproject.toml
+    uv sync --no-dev
     echo [INFO] Instalacion completada.
 )
 
