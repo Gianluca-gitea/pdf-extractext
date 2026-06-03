@@ -8,7 +8,7 @@ if [ ! -d ".venv" ]; then
     echo "[INFO] No se encontró el entorno virtual '.venv'."
     echo "[INFO] Creando entorno e instalando dependencias con uv (vuela)..."
     uv venv
-    uv pip install fastapi uvicorn pymongo PyMuPDF python-dotenv requests python-multipart
+    uv pip install -r pyproject.toml
     echo "[INFO] Instalación completada."
 fi
 

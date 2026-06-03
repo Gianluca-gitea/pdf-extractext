@@ -7,7 +7,7 @@ IF NOT EXIST ".venv\" (
     echo [INFO] No se encontro el entorno virtual '.venv'.
     echo [INFO] Creando entorno e instalando dependencias con uv...
     uv venv
-    uv pip install fastapi uvicorn pymongo PyMuPDF python-dotenv requests python-multipart
+    uv pip install -r pyproject.toml
     echo [INFO] Instalacion completada.
 )
 
