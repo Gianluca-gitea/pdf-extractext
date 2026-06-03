@@ -11,13 +11,19 @@ RUN apt-get update && apt-get install -y \
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock README.md ./
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+COPY --chown=appuser:appgroup pyproject.toml uv.lock README.md ./
 
 RUN uv sync --frozen --no-dev
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY app/ ./app/
+COPY --chown=appuser:appgroup app/ ./app/
 
 EXPOSE 8000
 
