@@ -1,5 +1,6 @@
 services:
   api:
+    image: pdf-extractext-api:0.1.0
     build: .
     ports:
       - "8000:8000"
@@ -9,19 +10,23 @@ services:
       - APP_MAX_PDF_SIZE_BYTES=5242880
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB_NAME=pdf-extractext
-    volumes:
-      - ./app:/app/app
     depends_on:
-      - mongodb
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+      mongodb:
+        condition: service_healthy
 
   mongodb:
-    image: mongo:latest
+    image: mongo:8.0.4
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
 
 volumes:
   mongodb_data:
