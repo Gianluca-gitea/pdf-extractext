@@ -318,7 +318,6 @@ dependencies = [
 [package.optional-dependencies]
 dev = [
     { name = "black" },
-    { name = "httpx2" },
     { name = "mypy" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -336,7 +335,6 @@ dev = [
 requires-dist = [
     { name = "black", marker = "extra == 'dev'", specifier = "==26.3.1" },
     { name = "fastapi", specifier = ">=0.120.0" },
-    { name = "httpx2", marker = "extra == 'dev'", specifier = ">=0.28.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = "==1.8.0" },
     { name = "pillow", specifier = ">=10.0.0" },
     { name = "pymongo", specifier = ">=4.17.0" },
