@@ -32,7 +32,7 @@ jobs:
         sudo apt-get install -y xvfb
         
         python -m pip install --upgrade pip
-        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
+        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx2 python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
