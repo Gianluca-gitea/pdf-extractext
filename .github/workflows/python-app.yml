@@ -29,18 +29,16 @@ jobs:
         sudo apt-get install -y xvfb
         
         python -m pip install --upgrade pip
-        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx2 python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
+        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx2 python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow ruff pytest pytest-mock requests
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
-    - name: Lint with flake8
+    - name: Lint and check format with ruff
       run: |
-        # stop the build if there are Python syntax errors or undefined names
-        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
-        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
-        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # Run ruff linter and output in GitHub Actions format
+        ruff check --output-format=github .
+        # Check formatting (this will fail the build if files are not formatted)
+        ruff format --check .
     - name: Test with pytest
       run: |
         xvfb-run pytest
-
-        
