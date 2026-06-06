@@ -100,9 +100,7 @@ def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
     logger.info("Opened PDF stream: pages=%d", len(doc))
 
     extracted_text = [
-        text
-        for page_num in range(len(doc))
-        for text in _extract_text_from_page(doc.load_page(page_num))
+        text for page_num in range(len(doc)) for text in _extract_text_from_page(doc.load_page(page_num))
     ]
 
     text_txt = _join_text_rows(extracted_text)

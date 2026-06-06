@@ -111,9 +111,7 @@ def cargar_lista_historial(tree):
             logger.info("History loaded successfully: %d items retrieved", len(docs))
             for d in docs:
                 fecha = d.get("created_at", "")[:16].replace("T", " ")
-                tree.insert(
-                    "", tk.END, values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
-                )
+                tree.insert("", tk.END, values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha))
         else:
             logger.error(
                 "Failed to load history: status_code=%d response=%s",
@@ -172,9 +170,7 @@ def renombrar_historial(tree):
     doc_id = tree.item(seleccion[0])["values"][0]
     nombre_actual = tree.item(seleccion[0])["values"][1]
 
-    nuevo_nombre = simpledialog.askstring(
-        "Renombrar", "Nuevo nombre del PDF:", initialvalue=nombre_actual
-    )
+    nuevo_nombre = simpledialog.askstring("Renombrar", "Nuevo nombre del PDF:", initialvalue=nombre_actual)
 
     if nuevo_nombre and nuevo_nombre != nombre_actual:
         logger.info(
@@ -312,9 +308,7 @@ ventana.geometry("900x650")
 ventana.config(bg="#1e1e1e")
 
 # Título
-titulo = tk.Label(
-    ventana, text="Extractor de PDF", font=("Arial", 24, "bold"), bg="#1e1e1e", fg="white"
-)
+titulo = tk.Label(ventana, text="Extractor de PDF", font=("Arial", 24, "bold"), bg="#1e1e1e", fg="white")
 
 titulo.pack(pady=20)
 

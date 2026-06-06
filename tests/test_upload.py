@@ -94,9 +94,7 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
-    assert response.json() == {
-        "detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)
-    }
+    assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
 
 
 def test_download_document_returns_txt_attachment(monkeypatch) -> None:

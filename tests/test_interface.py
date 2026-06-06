@@ -136,9 +136,7 @@ def test_cargar_lista_historial_exito(mocker):
 
     mock_tree.delete.assert_called_once_with("row1")
     mock_get.assert_called_once_with("http://127.0.0.1:8000/documents?limit=50")
-    mock_tree.insert.assert_called_with(
-        "", tk.END, values=("111", "test.pdf", "ok", "2026-05-25 10:00")
-    )
+    mock_tree.insert.assert_called_with("", tk.END, values=("111", "test.pdf", "ok", "2026-05-25 10:00"))
 
 
 def test_ver_texto_historial_exito(mocker):
@@ -221,15 +219,9 @@ def test_historial_acciones_error_de_conexion(mocker):
     mocker.patch("app.interface.simpledialog.askstring", return_value="nuevo.pdf")
     mocker.patch("app.interface.messagebox.askyesno", return_value=True)
 
-    mocker.patch(
-        "app.interface.requests.get", side_effect=requests.exceptions.ConnectionError("Failed")
-    )
-    mocker.patch(
-        "app.interface.requests.patch", side_effect=requests.exceptions.ConnectionError("Failed")
-    )
-    mocker.patch(
-        "app.interface.requests.delete", side_effect=requests.exceptions.ConnectionError("Failed")
-    )
+    mocker.patch("app.interface.requests.get", side_effect=requests.exceptions.ConnectionError("Failed"))
+    mocker.patch("app.interface.requests.patch", side_effect=requests.exceptions.ConnectionError("Failed"))
+    mocker.patch("app.interface.requests.delete", side_effect=requests.exceptions.ConnectionError("Failed"))
 
     mock_showerror = mocker.patch("app.interface.messagebox.showerror")
 

@@ -42,9 +42,7 @@ def get_settings() -> Settings:
             )
             max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
     else:
-        logger.debug(
-            "APP_MAX_PDF_SIZE_BYTES not set. Using default: %d", DEFAULT_MAX_PDF_SIZE_BYTES
-        )
+        logger.debug("APP_MAX_PDF_SIZE_BYTES not set. Using default: %d", DEFAULT_MAX_PDF_SIZE_BYTES)
         max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
 
     settings = Settings(
