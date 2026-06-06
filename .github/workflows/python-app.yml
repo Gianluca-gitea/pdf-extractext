@@ -12,18 +12,15 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
 
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
     - name: Set up Python 3.14
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: "3.14"
     - name: Install dependencies
@@ -32,7 +29,7 @@ jobs:
         sudo apt-get install -y xvfb
         
         python -m pip install --upgrade pip
-        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
+        pip install pypdf[all] fastapi[all] uvicorn[standard] httpx2 python-multipart PyMuPDF pytesseract pymongo python-dotenv Pillow flake8 pytest pytest-mock requests
         if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
     - name: Set PYTHONPATH
       run: echo "PYTHONPATH=$PWD" >> $GITHUB_ENV
