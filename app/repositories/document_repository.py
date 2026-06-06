@@ -1,12 +1,11 @@
-
 from __future__ import annotations
 
 import logging
 import os
 from datetime import datetime, timezone
 
-from pymongo import MongoClient, ReturnDocument
 from bson.objectid import ObjectId
+from pymongo import MongoClient, ReturnDocument
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

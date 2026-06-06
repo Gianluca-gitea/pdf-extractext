@@ -67,10 +67,7 @@ class TestDocumentBuilder:
         assert result["txt_chars"] == 0
 
     def test_construir_documento_preserves_checksum(self) -> None:
-        checksum_archivo = (
-            "abcdef1234567890abcdef1234567890"
-            "abcdef1234567890abcdef1234567890"
-        )
+        checksum_archivo = "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890"
 
         result = self._build_document(checksum_archivo=checksum_archivo)
 

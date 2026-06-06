@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
-
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -11,8 +11,6 @@ import fitz
 from app.repositories.document_repository import DocumentRepository
 from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
-from pathlib import Path
-
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -48,8 +46,8 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
 
     try:
         try:
-            from PIL import Image
             import pytesseract
+            from PIL import Image
         except Exception as exc:
             logger.warning("OCR dependencies not available: %s", exc)
             return ""
@@ -69,10 +67,7 @@ def _extract_text_from_block(block: dict) -> list[str]:
     block_type = block.get("type")
     logger.debug("Extracting text from block: type=%s", block_type)
     if block_type == TEXT_BLOCK:
-        lines = [
-            _join_spans(line).strip()
-            for line in block.get("lines", [])
-        ]
+        lines = [_join_spans(line).strip() for line in block.get("lines", [])]
         valid_lines = [line for line in lines if line]
         joined_text = _join_text_rows(valid_lines)
         return [joined_text] if joined_text else []
@@ -88,11 +83,7 @@ def _extract_text_from_page(page) -> list[str]:
     page_dict = page.get_text("dict", sort=True)
     blocks = page_dict.get("blocks", [])
     logger.debug("Extracting text from page: blocks=%d", len(blocks))
-    return [
-        text
-        for block in blocks
-        for text in _extract_text_from_block(block)
-    ]
+    return [text for block in blocks for text in _extract_text_from_block(block)]
 
 
 def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
@@ -182,7 +173,7 @@ def process_pdf_upload(
         texto_extraido=texto_extraido,
         checksum_archivo=checksum,
         duracion_ms=duration_ms,
-        estado="ok"
+        estado="ok",
     )
 
     inserted_id = active_repository.save_document(document)

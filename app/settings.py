@@ -1,5 +1,5 @@
-import os
 import logging
+import os
 from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ def get_settings() -> Settings:
                 logger.warning(
                     "APP_MAX_PDF_SIZE_BYTES must be strictly positive (got %d). Falling back to default: %d",
                     max_pdf_size,
-                    DEFAULT_MAX_PDF_SIZE_BYTES
+                    DEFAULT_MAX_PDF_SIZE_BYTES,
                 )
                 max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
         except ValueError:
@@ -38,11 +38,13 @@ def get_settings() -> Settings:
                 "Invalid APP_MAX_PDF_SIZE_BYTES value provided: '%s'. Falling back to default: %d",
                 max_pdf_size_raw,
                 DEFAULT_MAX_PDF_SIZE_BYTES,
-                exc_info=True
+                exc_info=True,
             )
             max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
     else:
-        logger.debug("APP_MAX_PDF_SIZE_BYTES not set. Using default: %d", DEFAULT_MAX_PDF_SIZE_BYTES)
+        logger.debug(
+            "APP_MAX_PDF_SIZE_BYTES not set. Using default: %d", DEFAULT_MAX_PDF_SIZE_BYTES
+        )
         max_pdf_size = DEFAULT_MAX_PDF_SIZE_BYTES
 
     settings = Settings(

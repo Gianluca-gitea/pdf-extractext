@@ -21,7 +21,7 @@ def construir_documento(
         pdf_nombre,
         checksum_archivo,
         len(texto_extraido),
-        estado
+        estado,
     )
 
     return {

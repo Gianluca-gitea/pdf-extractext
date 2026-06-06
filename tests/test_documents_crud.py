@@ -7,7 +7,6 @@ from fastapi.testclient import TestClient
 from app import main as main_module
 from app.services.document_service import InvalidStatusTransitionError
 
-
 client = TestClient(main_module.app)
 
 

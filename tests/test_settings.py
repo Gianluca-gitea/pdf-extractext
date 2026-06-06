@@ -1,5 +1,4 @@
-from app.settings import get_settings
-from app.settings import DEFAULT_MAX_PDF_SIZE_BYTES
+from app.settings import DEFAULT_MAX_PDF_SIZE_BYTES, get_settings
 
 
 def test_get_settings_reads_environment_variables(monkeypatch) -> None:

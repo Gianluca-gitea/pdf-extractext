@@ -1,13 +1,12 @@
 from dataclasses import replace
 from unittest.mock import MagicMock
 
+import fitz
 from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
-import fitz
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
-
 
 client = TestClient(main_module.app)
 
@@ -95,7 +94,9 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
-    assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
+    assert response.json() == {
+        "detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)
+    }
 
 
 def test_download_document_returns_txt_attachment(monkeypatch) -> None:

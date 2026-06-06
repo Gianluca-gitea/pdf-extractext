@@ -1,15 +1,14 @@
 from unittest.mock import MagicMock
 
+import fitz
+import pytest
 from bson.objectid import ObjectId
 
 from app.services import pdf_service
-
-import pytest
-import fitz
 from app.services.pdf_service import (
-    extract_text_from_pdf_bytes,
     InvalidPDFError,
     _extract_text_from_image_bytes,
+    extract_text_from_pdf_bytes,
 )
 
 
@@ -125,7 +124,9 @@ def test_extract_text_from_pdf_bytes_handles_fitz_open_error(monkeypatch):
 
 def test_extract_text_from_image_bytes_uses_ocr_successfully(mocker):
     mock_image_open = mocker.patch("PIL.Image.open")
-    mock_pytesseract = mocker.patch("pytesseract.image_to_string", return_value="texto detectado en imagen\n")
+    mock_pytesseract = mocker.patch(
+        "pytesseract.image_to_string", return_value="texto detectado en imagen\n"
+    )
 
     result = _extract_text_from_image_bytes(b"fake image bytes")
 

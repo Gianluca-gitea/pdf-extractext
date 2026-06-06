@@ -168,9 +168,7 @@ class TestDocumentRepository:
         cursor.sort.return_value = cursor
         cursor.skip.return_value = cursor
         cursor.limit.return_value = cursor
-        cursor.__iter__.return_value = iter([
-            {"_id": doc_id, "pdf_nombre": "test.pdf"}
-        ])
+        cursor.__iter__.return_value = iter([{"_id": doc_id, "pdf_nombre": "test.pdf"}])
         mock_collection.find.return_value = cursor
 
         result = repository.list_documents()
@@ -190,9 +188,9 @@ class TestDocumentRepository:
         cursor.sort.return_value = cursor
         cursor.skip.return_value = cursor
         cursor.limit.return_value = cursor
-        cursor.__iter__.return_value = iter([
-            {"_id": ObjectId(), "pdf_nombre": "test.pdf", "txt_contenido": "text"}
-        ])
+        cursor.__iter__.return_value = iter(
+            [{"_id": ObjectId(), "pdf_nombre": "test.pdf", "txt_contenido": "text"}]
+        )
         mock_collection.find.return_value = cursor
 
         repository.list_documents(include_text=True)

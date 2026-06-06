@@ -10,9 +10,9 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.settings import get_settings
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
+from app.settings import get_settings
 
 load_dotenv()
 
