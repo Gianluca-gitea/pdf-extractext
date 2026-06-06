@@ -8,11 +8,13 @@ if [ ! -d ".venv" ]; then
     echo "[INFO] No se encontró el entorno virtual '.venv'."
     echo "[INFO] Creando entorno e instalando dependencias con uv (vuela)..."
     uv venv
-    uv pip install fastapi uvicorn pymongo PyMuPDF python-dotenv requests python-multipart
+    uv sync --frozen --no-dev
     echo "[INFO] Instalación completada."
 fi
 
 echo "[INFO] Asegurate de que MongoDB esté corriendo en el puerto 27017..."
+
+uv sync --frozen --no-dev
 
 echo "[INFO] Iniciando el backend..."
 uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload &
