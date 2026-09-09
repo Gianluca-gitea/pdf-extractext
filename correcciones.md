@@ -4,6 +4,7 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 
 > **Revisión 2026-09-09:** verificados los puntos **1, 3 y 4** — aprobados y eliminados (config centralizada en `Settings` con inyección en `DocumentRepository`; `load_dotenv()` movido a `run_dev.py`). La numeración original se conserva.
 > **Revisión 2026-09-09 (2):** punto **2** aprobado y eliminado — fail-fast real en `get_settings()` (`MONGODB_URI` obligatoria fuera de `dev`/`test`); el repositorio vuelve a fuente única sin `os.getenv`.
+> **Revisión 2026-09-09 (3):** punto **7** aprobado y eliminado — serialización genérica en `app/services/serializers.py` (`serialize_value`/`serialize_document`, primer nivel) usada por los 5 sitios de `app/main.py`, con `tests/test_serializers.py`.
 
 ---
 
@@ -28,12 +29,6 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 ---
 
 ## DRY (Duplicación de código)
-
-### 7. Lógica de serialización de `datetime` repetida (`app/main.py:52-65`)
-- **Archivo:** `app/main.py`
-- **Severidad:** Media (DRY)
-- **Descripción:** `_serialize_document` convierte `_id`, `created_at` y `deleted_at` manualmente campo a campo.
-- **Corrección:** Usar `pydantic` (con `model_config`) o un helper genérico de serialización que itere y convierta fechas/ObjectId automáticamente, evitando repetir `if isinstance(x, datetime)`.
 
 ### 8. Lógica de "Documento no encontrado" repetida en cada endpoint (`app/main.py`)
 - **Archivo:** `app/main.py`
@@ -203,7 +198,7 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 ## Resumen por severidad
 
 - **Alta:** — (el punto 1 fue resuelto y eliminado)
-- **Media:** 6, 7, 8, 9, 13, 15, 16, 17, 20, 22, 27, 30 (12 ítems)
+- **Media:** 6, 8, 9, 13, 15, 16, 17, 20, 22, 27, 30 (11 ítems)
 - **Baja:** 5, 10, 11, 12, 14, 18, 19, 21, 23, 24, 25, 26, 28, 29, 31
 
 **Prioridad de acción sugerida:**

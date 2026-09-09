@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
 from typing import Literal
 
 from bson.objectid import ObjectId
@@ -9,9 +8,10 @@ from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.settings import get_settings
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
+from app.services.serializers import serialize_document
+from app.settings import get_settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -46,22 +46,6 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def _serialize_document(document: dict) -> dict:
-    document_copy = {**document}
-    document_id = document_copy.get("_id")
-    if document_id is not None:
-        document_copy["_id"] = str(document_id)
-
-    created_at = document_copy.get("created_at")
-    if isinstance(created_at, datetime):
-        document_copy["created_at"] = created_at.isoformat()
-
-    deleted_at = document_copy.get("deleted_at")
-    if isinstance(deleted_at, datetime):
-        document_copy["deleted_at"] = deleted_at.isoformat()
-    return document_copy
-
-
 def _model_dump(model: BaseModel) -> dict:
     if hasattr(model, "model_dump"):
         return model.model_dump(exclude_unset=True)
@@ -89,7 +73,7 @@ def get_document_by_checksum(checksum: str) -> dict[str, object]:
     logger.info("Document found for checksum: %s, document_id: %s", checksum, document.get("_id"))
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
@@ -103,7 +87,7 @@ def list_documents(
     service = DocumentService()
     documents = service.list_documents(skip=skip, limit=limit, include_text=include_text)
 
-    serialized_documents = [_serialize_document(document) for document in documents]
+    serialized_documents = [serialize_document(document) for document in documents]
     return {
         "items": serialized_documents,
         "count": len(serialized_documents),
@@ -125,7 +109,7 @@ def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str,
 
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
@@ -156,7 +140,7 @@ def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, obje
 
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
