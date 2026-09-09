@@ -15,8 +15,8 @@ echo [INFO] Asegurate de que MongoDB este corriendo en el puerto 27017...
 
 uv sync --frozen --no-dev
 
-echo [INFO] Iniciando el backend..
-start "PDF Backend Server" cmd /c "uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload"
+echo [INFO] Iniciando el backend (carga .env solo en local)..
+start "PDF Backend Server" cmd /c "uv run python run_dev.py"
 
 echo [INFO] Esperando 2 segundos para que el servidor inicie...
 timeout /t 2 /nobreak > NUL
