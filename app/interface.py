@@ -155,15 +155,20 @@ def cargar_lista_historial(tree):
         messagebox.showerror("Error", "Servidor desconectado.")
 
 
-def ver_texto_historial(tree, ventana_historial):
-    global texto_extraido_global
+def _get_selected_document(tree) -> str | None:
     seleccion = tree.selection()
     if not seleccion:
-        logger.warning("Load text attempted but no document selected")
+        logger.warning("Action attempted but no document selected")
         messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
-        return
+        return None
+    return tree.item(seleccion[0])['values'][0]
 
-    doc_id = tree.item(seleccion[0])['values'][0]
+
+def ver_texto_historial(tree, ventana_historial):
+    global texto_extraido_global
+    doc_id = _get_selected_document(tree)
+    if doc_id is None:
+        return
     logger.info("Fetching text for document id: %s", doc_id)
 
     try:
@@ -192,13 +197,11 @@ def ver_texto_historial(tree, ventana_historial):
 
 
 def renombrar_historial(tree):
-    seleccion = tree.selection()
-    if not seleccion:
-        logger.warning("Rename attempted but no document selected")
-        messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
+    doc_id = _get_selected_document(tree)
+    if doc_id is None:
         return
 
-    doc_id = tree.item(seleccion[0])['values'][0]
+    seleccion = tree.selection()
     nombre_actual = tree.item(seleccion[0])['values'][1]
 
     nuevo_nombre = simpledialog.askstring(
@@ -237,13 +240,9 @@ def renombrar_historial(tree):
 
 
 def eliminar_historial(tree):
-    seleccion = tree.selection()
-    if not seleccion:
-        logger.warning("Delete attempted but no document selected")
-        messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
+    doc_id = _get_selected_document(tree)
+    if doc_id is None:
         return
-
-    doc_id = tree.item(seleccion[0])['values'][0]
     msg = "¿Seguro que querés eliminar este documento de la base de datos?"
     if messagebox.askyesno("Confirmar", msg):
         logger.info("Attempting to delete document id: %s", doc_id)
