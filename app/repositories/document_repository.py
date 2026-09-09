@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 
 from bson.objectid import ObjectId
@@ -22,17 +21,9 @@ class DocumentRepository:
     ):
         app_settings = settings or get_settings()
 
-        if mongo_client is None:
-            mongodb_uri = app_settings.mongodb_uri
-            if not mongodb_uri:
-                env = os.getenv("ENVIRONMENT", "development")
-                if env != "development":
-                    raise RuntimeError("MONGODB_URI environment variable is required in non-development environments")
-                mongodb_uri = "mongodb://localhost:27017"
-                logger.warning("MONGODB_URI not set, using development default: %s", mongodb_uri)
-            mongo_client = MongoClient(mongodb_uri)
-
-        self.client = mongo_client
+        # Fail-fast ya resuelto en get_settings(): fuera de dev/test
+        # MONGODB_URI es obligatoria y aquí siempre viene configurada.
+        self.client = mongo_client or MongoClient(app_settings.mongodb_uri)
         self.db = self.client[app_settings.mongodb_db_name]
         self.collection = self.db[app_settings.mongo_collection_name]
 
