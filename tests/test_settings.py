@@ -1,5 +1,8 @@
+import pytest
+
 from app.settings import get_settings
 from app.settings import DEFAULT_MAX_PDF_SIZE_BYTES
+from app.settings import DEFAULT_MONGODB_URI
 
 
 def test_get_settings_reads_environment_variables(monkeypatch) -> None:
@@ -30,3 +33,29 @@ def test_get_settings_uses_default_when_max_size_is_invalid_string(monkeypatch) 
     settings = get_settings()
 
     assert settings.max_pdf_size_bytes == DEFAULT_MAX_PDF_SIZE_BYTES
+
+
+def test_get_settings_uses_local_mongo_default_in_dev(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "dev")
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    settings = get_settings()
+
+    assert settings.mongodb_uri == DEFAULT_MONGODB_URI
+
+
+def test_get_settings_raises_when_mongo_uri_missing_outside_local(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.delenv("MONGODB_URI", raising=False)
+
+    with pytest.raises(RuntimeError, match="MONGODB_URI"):
+        get_settings()
+
+
+def test_get_settings_uses_configured_mongo_uri_outside_local(monkeypatch) -> None:
+    monkeypatch.setenv("APP_ENV", "prod")
+    monkeypatch.setenv("MONGODB_URI", "mongodb://prod-mongo:27017")
+
+    settings = get_settings()
+
+    assert settings.mongodb_uri == "mongodb://prod-mongo:27017"
