@@ -15,7 +15,13 @@ logger.setLevel(logging.INFO)
 class DocumentRepository:
     def __init__(self, mongo_client: MongoClient | None = None):
         if mongo_client is None:
-            mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
+            mongo_uri = os.getenv("MONGODB_URI")
+            if not mongo_uri:
+                env = os.getenv("ENVIRONMENT", "development")
+                if env != "development":
+                    raise RuntimeError("MONGODB_URI environment variable is required in non-development environments")
+                mongo_uri = "mongodb://localhost:27017"
+                logger.warning("MONGODB_URI not set, using development default: %s", mongo_uri)
             mongo_client = MongoClient(mongo_uri)
 
         self.client = mongo_client
