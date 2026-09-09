@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import Literal
 
 from bson.objectid import ObjectId
-from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
@@ -13,8 +12,6 @@ from pydantic import BaseModel, Field
 from app.settings import get_settings
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
-
-load_dotenv()
 
 logging.basicConfig(
     level=logging.INFO,
