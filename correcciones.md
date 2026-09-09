@@ -19,6 +19,7 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 - **Severidad:** Baja
 - **Descripción:** `requires-python = ">=3.14"` y el Dockerfile usan `python:3.14`, pero `[tool.black]`, `[tool.ruff]` y `[tool.mypy]` usan `target-version`/`python_version = "3.12"`. Inconsistencia entre el objetivo de ejecución y el de tooling.
 - **Corrección:** Unificar todos en 3.14 (o el mínimo soportado real) para evitar que el linting no detecte código incompatible con el runtime.
+- **Estado (revisión 2026-09-09, parcial):** `[tool.black]` unificado a `py314` (verificado con black 26.3.1) y `select` de ruff migrado a `[tool.ruff.lint]` (fin del warning deprecado). Pendiente: `[tool.ruff]` sigue en `py312` y `[tool.mypy]` en `3.12` porque los pins `ruff==0.3.0` y `mypy==1.8.0` no aceptan 3.14 — requiere alcance completo (subir pins + `uv lock`).
 
 ### 6. Dependencias duplicadas e inconsistentes en `pyproject.toml`
 - **Archivos:** `pyproject.toml:22-29` y `pyproject.toml:91-96`

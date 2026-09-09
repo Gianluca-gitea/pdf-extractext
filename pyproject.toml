@@ -45,7 +45,7 @@ markers = [
 
 [tool.black]
 line-length = 100
-target-version = ["py312"]
+target-version = ["py314"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -64,8 +64,10 @@ extend-exclude = '''
 [tool.ruff]
 line-length = 100
 target-version = "py312"
-select = ["E", "F", "W", "I", "N"]
 exclude = [".venv", "build", "dist", "__pycache__"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N"]
 
 [tool.mypy]
 python_version = "3.12"
