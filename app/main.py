@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Literal
 
 from bson.objectid import ObjectId
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
@@ -9,6 +8,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
+from app.services.document_status import DocumentoEstado
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
 from app.services.serializers import serialize_document
 from app.settings import get_settings
@@ -36,7 +36,7 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 
 class DocumentUpdate(BaseModel):
     pdf_nombre: str | None = Field(default=None, min_length=1, max_length=200)
-    estado: Literal["pendiente", "ok", "error"] | None = None
+    estado: DocumentoEstado | None = None
     error: str | None = Field(default=None, max_length=500)
 
 

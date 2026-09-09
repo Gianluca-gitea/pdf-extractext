@@ -3,6 +3,8 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 
+from app.services.document_status import DocumentoEstado
+
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -12,7 +14,7 @@ def construir_documento(
     texto_extraido: str,
     checksum_archivo: str,
     duracion_ms: int,
-    estado: str = "pendiente",
+    estado: DocumentoEstado = "pendiente",
     error: str | None = None,
 ) -> dict:
 

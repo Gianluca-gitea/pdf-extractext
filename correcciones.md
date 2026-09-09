@@ -5,6 +5,7 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 > **Revisión 2026-09-09:** verificados los puntos **1, 3 y 4** — aprobados y eliminados (config centralizada en `Settings` con inyección en `DocumentRepository`; `load_dotenv()` movido a `run_dev.py`). La numeración original se conserva.
 > **Revisión 2026-09-09 (2):** punto **2** aprobado y eliminado — fail-fast real en `get_settings()` (`MONGODB_URI` obligatoria fuera de `dev`/`test`); el repositorio vuelve a fuente única sin `os.getenv`.
 > **Revisión 2026-09-09 (3):** punto **7** aprobado y eliminado — serialización genérica en `app/services/serializers.py` (`serialize_value`/`serialize_document`, primer nivel) usada por los 5 sitios de `app/main.py`, con `tests/test_serializers.py`.
+> **Revisión 2026-09-09 (4):** punto **9** aprobado y eliminado — `DocumentoEstado` (`Literal["pendiente","ok","error"]`) en `app/services/document_status.py`; usado en `document_service.py` (`ALLOWED_ESTADOS`), `document_builder.py` (firma tipada), `main.py` (`DocumentUpdate.estado`), `pdf_service.py` (import para coherencia).
 
 ---
 
@@ -35,12 +36,6 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 - **Severidad:** Media (DRY)
 - **Descripción:** Los bloques `if document is None: ... raise HTTPException(404, "Documento no encontrado.")` se repiten en 4 endpoints (`by-checksum`, `get_by_id`, `update`, `download`).
 - **Corrección:** Extraer un helper `_get_or_404` o un `@app.get` utilitario que centralice el manejo y el logging del 404.
-
-### 9. Definición de estados duplicada
-- **Archivos:** `app/services/document_service.py:12`, `app/services/document_builder.py:15`, `app/main.py:42`
-- **Severidad:** Media (DRY)
-- **Descripción:** El conjunto de estados válidos `{"pendiente", "ok", "error"}` está duplicado en `ALLOWED_ESTADOS`, en el literal `estado` de `construir_documento` y en el `Literal` de `DocumentUpdate`. Un cambio en uno rompe la consistencia sin error de compilación claro.
-- **Corrección:** Definir un único tipo/enum (p. ej. `DocumentoEstado` con `Enum` o `Literal` compartido) y usarlo en todas las capas.
 
 ### 10. Repetición del patrón `seleccion == []` y `tree.item(...)['values'][0]` en `app/interface.py`
 - **Archivo:** `app/interface.py`
@@ -198,11 +193,10 @@ Auditoría de todo el proyecto buscando infracciones de principios de **DRY, KIS
 ## Resumen por severidad
 
 - **Alta:** — (el punto 1 fue resuelto y eliminado)
-- **Media:** 6, 8, 9, 13, 15, 16, 17, 20, 22, 27, 30 (11 ítems)
+- **Media:** 6, 8, 13, 15, 16, 17, 20, 22, 27, 30 (10 ítems)
 - **Baja:** 5, 10, 11, 12, 14, 18, 19, 21, 23, 24, 25, 26, 28, 29, 31
 
 **Prioridad de acción sugerida:**
 1. Inyección de dependencias y ciclo de vida de Mongo (16, 17).
 2. Refactorizar `interface.py` (desacople + URL + bug 20/21/22/26).
 3. Limpiar código muerto y consolidar dependencias (6, 13, 12).
-4. Unificar estados en un enum (9, 25).

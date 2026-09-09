@@ -13,7 +13,6 @@ from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
 from app.settings import Settings
 
-
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
@@ -48,8 +47,8 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
 
     try:
         try:
-            from PIL import Image
             import pytesseract
+            from PIL import Image
         except Exception as exc:
             logger.warning("OCR dependencies not available: %s", exc)
             return ""

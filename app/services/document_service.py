@@ -5,12 +5,12 @@ import logging
 from bson.objectid import ObjectId
 
 from app.repositories.document_repository import DocumentRepository
+from app.services.document_status import ESTADOS_VALIDOS as ALLOWED_ESTADOS
 from app.settings import Settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-ALLOWED_ESTADOS = {"pendiente", "ok", "error"}
 ALLOWED_ESTADO_TRANSITIONS = {
     None: {"pendiente", "ok", "error"},
     "pendiente": {"ok", "error"},
