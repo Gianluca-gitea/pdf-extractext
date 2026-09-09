@@ -47,12 +47,6 @@ class DocumentRepository:
             app_settings.mongodb_db_name,
             app_settings.mongo_collection_name,
         )
-        logger.info(
-            "DocumentRepository initialized: uri=%s database=%s collection=%s",
-            actual_uri,
-            app_settings.mongodb_db_name,
-            app_settings.mongo_collection_name,
-        )
 
     def save_document(self, document: dict) -> ObjectId:
         result = self.collection.insert_one(document)
