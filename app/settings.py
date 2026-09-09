@@ -15,8 +15,9 @@ class Settings:
     app_env: str = "dev"
     max_pdf_size_bytes: int = DEFAULT_MAX_PDF_SIZE_BYTES
     # MongoDB Configuration
-    mongodb_uri: str = ""
+    mongodb_uri: str = "mongodb://localhost:27017"
     mongodb_db_name: str = "pdf-extractext"
+    mongo_collection_name: str = "documents"
 
 
 def get_settings() -> Settings:
@@ -50,8 +51,9 @@ def get_settings() -> Settings:
         app_version=os.getenv("APP_VERSION", "0.1.0"),
         app_env=os.getenv("APP_ENV", "dev"),
         max_pdf_size_bytes=max_pdf_size,
-        mongodb_uri=os.getenv("MONGODB_URI", ""),
+        mongodb_uri=os.getenv("MONGODB_URI", "mongodb://localhost:27017"),
         mongodb_db_name=os.getenv("MONGODB_DB_NAME", "pdf-extractext"),
+        mongo_collection_name=os.getenv("MONGO_COLLECTION_NAME", "documents"),
     )
 
     logger.info(
