@@ -5,6 +5,7 @@ import logging
 from bson.objectid import ObjectId
 
 from app.repositories.document_repository import DocumentRepository
+from app.settings import Settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -23,8 +24,12 @@ class InvalidStatusTransitionError(ValueError):
 
 
 class DocumentService:
-    def __init__(self, repository: DocumentRepository | None = None) -> None:
-        self.repository = repository or DocumentRepository()
+    def __init__(
+        self,
+        repository: DocumentRepository | None = None,
+        settings: Settings | None = None,
+    ) -> None:
+        self.repository = repository or DocumentRepository(settings=settings)
 
     def list_documents(
         self,

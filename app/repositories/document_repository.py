@@ -5,38 +5,53 @@ import logging
 import os
 from datetime import datetime, timezone
 
-from pymongo import MongoClient, ReturnDocument
 from bson.objectid import ObjectId
+from pymongo import MongoClient, ReturnDocument
+
+from app.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 
 class DocumentRepository:
-    def __init__(self, mongo_client: MongoClient | None = None):
+    def __init__(
+        self,
+        settings: Settings | None = None,
+        mongo_client: MongoClient | None = None,
+    ):
+        app_settings = settings or get_settings()
+
         if mongo_client is None:
-            mongo_uri = os.getenv("MONGODB_URI")
-            if not mongo_uri:
+            mongodb_uri = app_settings.mongodb_uri
+            if not mongodb_uri:
                 env = os.getenv("ENVIRONMENT", "development")
                 if env != "development":
                     raise RuntimeError("MONGODB_URI environment variable is required in non-development environments")
-                mongo_uri = "mongodb://localhost:27017"
-                logger.warning("MONGODB_URI not set, using development default: %s", mongo_uri)
-            mongo_client = MongoClient(mongo_uri)
+                mongodb_uri = "mongodb://localhost:27017"
+                logger.warning("MONGODB_URI not set, using development default: %s", mongodb_uri)
+            mongo_client = MongoClient(mongodb_uri)
 
         self.client = mongo_client
-        database_name = os.getenv("MONGODB_DB_NAME", "pdf-extractext")
-        collection_name = os.getenv("MONGO_COLLECTION_NAME", "documents")
+        self.db = self.client[app_settings.mongodb_db_name]
+        self.collection = self.db[app_settings.mongo_collection_name]
 
-        self.db = mongo_client[database_name]
-        self.collection = self.db[collection_name]
-
-        actual_uri = mongo_client.address if hasattr(mongo_client, "address") else mongo_uri
+        actual_uri = (
+            self.client.address
+            if hasattr(self.client, "address")
+            else app_settings.mongodb_uri
+        )
         logger.info(
             "DocumentRepository initialized: uri=%s database=%s collection=%s",
             actual_uri,
-            database_name,
-            collection_name,
+            app_settings.mongodb_db_name,
+            app_settings.mongo_collection_name,
+        )
+        logger.info(
+            "DocumentRepository initialized: uri=%s database=%s collection=%s",
+            actual_uri,
+            app_settings.mongodb_db_name,
+            app_settings.mongo_collection_name,
         )
 
     def save_document(self, document: dict) -> ObjectId:
