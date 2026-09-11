@@ -5,11 +5,12 @@ import logging
 from bson.objectid import ObjectId
 
 from app.repositories.document_repository import DocumentRepository
+from app.services.document_status import ESTADOS_VALIDOS as ALLOWED_ESTADOS
+from app.settings import Settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-ALLOWED_ESTADOS = {"pendiente", "ok", "error"}
 ALLOWED_ESTADO_TRANSITIONS = {
     None: {"pendiente", "ok", "error"},
     "pendiente": {"ok", "error"},
@@ -23,8 +24,12 @@ class InvalidStatusTransitionError(ValueError):
 
 
 class DocumentService:
-    def __init__(self, repository: DocumentRepository | None = None) -> None:
-        self.repository = repository or DocumentRepository()
+    def __init__(
+        self,
+        repository: DocumentRepository | None = None,
+        settings: Settings | None = None,
+    ) -> None:
+        self.repository = repository or DocumentRepository(settings=settings)
 
     def list_documents(
         self,

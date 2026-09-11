@@ -1,20 +1,17 @@
 from __future__ import annotations
 
 import logging
-from datetime import datetime
-from typing import Literal
 
 from bson.objectid import ObjectId
-from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from app.settings import get_settings
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
+from app.services.document_status import DocumentoEstado
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
-
-load_dotenv()
+from app.services.serializers import serialize_document
+from app.settings import get_settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,7 +36,7 @@ app = FastAPI(title=settings.app_name, version=settings.app_version)
 
 class DocumentUpdate(BaseModel):
     pdf_nombre: str | None = Field(default=None, min_length=1, max_length=200)
-    estado: Literal["pendiente", "ok", "error"] | None = None
+    estado: DocumentoEstado | None = None
     error: str | None = Field(default=None, max_length=500)
 
 
@@ -47,22 +44,6 @@ class DocumentUpdate(BaseModel):
 def health() -> dict[str, str]:
     logger.debug("Health check requested")
     return {"status": "ok"}
-
-
-def _serialize_document(document: dict) -> dict:
-    document_copy = {**document}
-    document_id = document_copy.get("_id")
-    if document_id is not None:
-        document_copy["_id"] = str(document_id)
-
-    created_at = document_copy.get("created_at")
-    if isinstance(created_at, datetime):
-        document_copy["created_at"] = created_at.isoformat()
-
-    deleted_at = document_copy.get("deleted_at")
-    if isinstance(deleted_at, datetime):
-        document_copy["deleted_at"] = deleted_at.isoformat()
-    return document_copy
 
 
 def _model_dump(model: BaseModel) -> dict:
@@ -79,20 +60,35 @@ def _parse_document_id(document_id: str) -> ObjectId:
         raise HTTPException(status_code=400, detail=INVALID_DOCUMENT_ID_ERROR_DETAIL) from exc
 
 
+def _get_document_or_404(
+    service: DocumentService,
+    getter_method,
+    *args,
+    not_found_msg: str = "Documento no encontrado.",
+    log_prefix: str = "",
+    **kwargs,
+) -> dict:
+    document = getter_method(*args, **kwargs)
+    if document is None:
+        logger.warning("%s Document not found: %s", log_prefix, args[0] if args else "unknown")
+        raise HTTPException(status_code=404, detail=not_found_msg)
+    return document
+
+
 @app.get("/documents/by-checksum/{checksum}")
 def get_document_by_checksum(checksum: str) -> dict[str, object]:
     logger.info("Requested document by checksum: %s", checksum)
     service = DocumentService()
-    document = service.get_document_by_checksum(checksum)
-
-    if document is None:
-        logger.warning("Document not found for checksum: %s", checksum)
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
-
+    document = _get_document_or_404(
+        service,
+        service.get_document_by_checksum,
+        checksum,
+        log_prefix=f"checksum={checksum}",
+    )
     logger.info("Document found for checksum: %s, document_id: %s", checksum, document.get("_id"))
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
@@ -106,7 +102,7 @@ def list_documents(
     service = DocumentService()
     documents = service.list_documents(skip=skip, limit=limit, include_text=include_text)
 
-    serialized_documents = [_serialize_document(document) for document in documents]
+    serialized_documents = [serialize_document(document) for document in documents]
     return {
         "items": serialized_documents,
         "count": len(serialized_documents),
@@ -120,15 +116,16 @@ def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str,
     logger.info("Requested document by id: %s", document_id)
     object_id = _parse_document_id(document_id)
     service = DocumentService()
-    document = service.get_document_by_id(object_id, include_text=include_text)
-
-    if document is None:
-        logger.warning("Document not found for id: %s", document_id)
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
-
+    document = _get_document_or_404(
+        service,
+        service.get_document_by_id,
+        object_id,
+        include_text=include_text,
+        log_prefix=f"id={document_id}",
+    )
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
@@ -148,18 +145,20 @@ def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, obje
 
     service = DocumentService()
     try:
-        document = service.update_document(object_id, updates)
+        document = _get_document_or_404(
+            service,
+            service.update_document,
+            object_id,
+            updates,
+            log_prefix=f"update id={document_id}",
+        )
     except InvalidStatusTransitionError as exc:
         logger.warning("Invalid status transition for document_id=%s: %s", document_id, exc)
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    if document is None:
-        logger.warning("Update failed. Document not found for id: %s", document_id)
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
-
     return {
         "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
+        "document": serialize_document(document),
     }
 
 
@@ -185,11 +184,13 @@ def download_document_text(document_id: str) -> Response:
     object_id = _parse_document_id(document_id)
 
     service = DocumentService()
-    document = service.get_document_by_id(object_id, include_text=True)
-
-    if document is None:
-        logger.warning("Download failed: Document not found for ID: %s", document_id)
-        raise HTTPException(status_code=404, detail="Documento no encontrado.")
+    document = _get_document_or_404(
+        service,
+        service.get_document_by_id,
+        object_id,
+        include_text=True,
+        log_prefix=f"download id={document_id}",
+    )
 
     txt_content = document.get("txt_contenido", "")
     downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
-
+from pathlib import Path
 from time import perf_counter
 from typing import Any
 
@@ -11,8 +11,7 @@ import fitz
 from app.repositories.document_repository import DocumentRepository
 from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
-from pathlib import Path
-
+from app.settings import Settings
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -48,8 +47,8 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
 
     try:
         try:
-            from PIL import Image
             import pytesseract
+            from PIL import Image
         except Exception as exc:
             logger.warning("OCR dependencies not available: %s", exc)
             return ""
@@ -135,6 +134,7 @@ def process_pdf_upload(
     file_name: str,
     file_bytes: bytes,
     repository: DocumentRepository | None = None,
+    settings: Settings | None = None,
 ) -> dict[str, Any]:
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
@@ -145,7 +145,7 @@ def process_pdf_upload(
         len(file_bytes),
     )
 
-    active_repository = repository or DocumentRepository()
+    active_repository = repository or DocumentRepository(settings=settings)
     existing = active_repository.find_by_checksum(checksum)
     if existing is not None:
         logger.info(

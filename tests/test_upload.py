@@ -77,7 +77,11 @@ def test_upload_pdf_rejects_non_pdf_file() -> None:
 def test_upload_pdf_rejects_invalid_pdf_content(monkeypatch) -> None:
     process_mock = MagicMock()
     process_mock.find_by_checksum.return_value = None
-    monkeypatch.setattr(pdf_service_module, "DocumentRepository", lambda: process_mock)
+    monkeypatch.setattr(
+        pdf_service_module,
+        "DocumentRepository",
+        lambda settings=None: process_mock,
+    )
 
     files = {"file": ("falso.pdf", b"esto no es un pdf", "application/pdf")}
 
