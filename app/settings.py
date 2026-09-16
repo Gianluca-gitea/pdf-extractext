@@ -5,7 +5,7 @@ from dataclasses import dataclass
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-DEFAULT_MAX_PDF_SIZE_BYTES = 5_242_880
+DEFAULT_MAX_PDF_SIZE_BYTES = 10_485_760
 
 
 @dataclass(frozen=True)

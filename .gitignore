@@ -210,3 +210,6 @@ __marimo__/
 # Archivos
 *.txt
 *.pdf
+
+# PDFs de prueba para los tests de carga con k6
+!tests/stress/pdfs/*.pdf
