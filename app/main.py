@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import logging
+from contextlib import asynccontextmanager
 
 from bson.objectid import ObjectId
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
+from app.dependencies import DocumentServiceDep, lifespan
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.document_status import DocumentoEstado
 from app.services.pdf_service import InvalidPDFError, process_pdf_upload
@@ -31,7 +33,7 @@ MAX_LIST_LIMIT = 100
 settings = get_settings()
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 
 
 class DocumentUpdate(BaseModel):
@@ -76,9 +78,8 @@ def _get_document_or_404(
 
 
 @app.get("/documents/by-checksum/{checksum}")
-def get_document_by_checksum(checksum: str) -> dict[str, object]:
+def get_document_by_checksum(checksum: str, service: DocumentServiceDep) -> dict[str, object]:
     logger.info("Requested document by checksum: %s", checksum)
-    service = DocumentService()
     document = _get_document_or_404(
         service,
         service.get_document_by_checksum,
@@ -97,9 +98,9 @@ def list_documents(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=MAX_LIST_LIMIT),
     include_text: bool = False,
+    service: DocumentServiceDep = None,
 ) -> dict[str, object]:
     logger.info("Listing documents: skip=%d limit=%d include_text=%s", skip, limit, include_text)
-    service = DocumentService()
     documents = service.list_documents(skip=skip, limit=limit, include_text=include_text)
 
     serialized_documents = [serialize_document(document) for document in documents]
@@ -112,10 +113,13 @@ def list_documents(
 
 
 @app.get("/documents/{document_id}")
-def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str, object]:
+def get_document_by_id(
+    document_id: str,
+    include_text: bool = True,
+    service: DocumentServiceDep = None,
+) -> dict[str, object]:
     logger.info("Requested document by id: %s", document_id)
     object_id = _parse_document_id(document_id)
-    service = DocumentService()
     document = _get_document_or_404(
         service,
         service.get_document_by_id,
@@ -130,7 +134,11 @@ def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str,
 
 
 @app.patch("/documents/{document_id}")
-def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, object]:
+def update_document(
+    document_id: str,
+    payload: DocumentUpdate,
+    service: DocumentServiceDep = None,
+) -> dict[str, object]:
     logger.info("Updating document id: %s", document_id)
     object_id = _parse_document_id(document_id)
 
@@ -143,7 +151,6 @@ def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, obje
     if not updates:
         raise HTTPException(status_code=400, detail=NO_UPDATE_FIELDS_ERROR_DETAIL)
 
-    service = DocumentService()
     try:
         document = _get_document_or_404(
             service,
@@ -163,10 +170,12 @@ def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, obje
 
 
 @app.delete("/documents/{document_id}")
-def delete_document(document_id: str) -> dict[str, str]:
+def delete_document(
+    document_id: str,
+    service: DocumentServiceDep = None,
+) -> dict[str, str]:
     logger.info("Deleting document id: %s", document_id)
     object_id = _parse_document_id(document_id)
-    service = DocumentService()
     deleted = service.delete_document(object_id)
 
     if not deleted:
@@ -179,11 +188,13 @@ def delete_document(document_id: str) -> dict[str, str]:
 
 
 @app.get("/documents/{document_id}/download")
-def download_document_text(document_id: str) -> Response:
+def download_document_text(
+    document_id: str,
+    service: DocumentServiceDep = None,
+) -> Response:
     logger.info("Download requested for document_id: %s", document_id)
     object_id = _parse_document_id(document_id)
 
-    service = DocumentService()
     document = _get_document_or_404(
         service,
         service.get_document_by_id,
@@ -211,7 +222,10 @@ def download_document_text(document_id: str) -> Response:
 
 
 @app.post("/documents/upload")
-async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
+async def upload_pdf(
+    file: UploadFile = File(...),
+    service: DocumentServiceDep = None,
+) -> dict[str, str | int]:
     file_bytes = await file.read()
     filename = file.filename or "sin_nombre.pdf"
     logger.info(
@@ -249,6 +263,7 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
         result = process_pdf_upload(
             file_name=filename,
             file_bytes=file_bytes,
+            repository=service.repository,
         )
     except InvalidPDFError as exc:
         logger.warning("Invalid PDF content for filename=%s: %s", filename, exc)
