@@ -257,6 +257,9 @@ def eliminar_historial(tree, client: ApiClient = None):
         try:
             client.delete_document(doc_id)
             logger.info("Document successfully deleted")
+            global texto_extraido_global
+            texto_extraido_global = ""
+            texto_resultado.delete("1.0", tk.END)
             cargar_lista_historial(tree, client)
         except ConnectionError as e:
             logger.error("Connection error while deleting document: %s", e)

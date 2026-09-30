@@ -194,6 +194,7 @@ def test_eliminar_historial_exito(mocker):
 
     mock_client = _mock_api_client(mocker)
     mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
+    _setup_ui_mocks(mocker)
 
     interface.eliminar_historial(mock_tree)
 
