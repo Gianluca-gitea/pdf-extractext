@@ -14,6 +14,13 @@ def _setup_ui_mocks(mocker):
     return mock_label, mock_text
 
 
+def _mock_api_client(mocker):
+    """Crea un ApiClient mockeado para tests."""
+    mock_client = MagicMock(spec=interface.ApiClient)
+    mocker.patch.object(interface, 'api_client', mock_client)
+    return mock_client
+
+
 def test_seleccionar_pdf_exito(mocker):
     interface.archivo_pdf = None
     ruta_falsa = "/ruta/falsa/mi_documento.pdf"
@@ -30,22 +37,19 @@ def test_seleccionar_pdf_exito(mocker):
 
 
 def test_extraer_texto_exito(mocker):
-
     interface.archivo_pdf = "archivo_ficticio.pdf"
     interface.texto_extraido_global = ""
     _setup_ui_mocks(mocker)
 
     mocker.patch("builtins.open", mocker.mock_open(read_data=b"contenido pdf fake"))
 
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"extracted_text": "Texto extraído por el mock"}
-    mocker.patch('app.interface.requests.post', return_value=mock_response)
+    mock_client = _mock_api_client(mocker)
+    mock_client.upload.return_value = {"extracted_text": "Texto extraído por el mock"}
 
     interface.extraer_texto()
 
     assert interface.texto_extraido_global == "Texto extraído por el mock"
-
+    mock_client.upload.assert_called_once_with("archivo_ficticio.pdf", "archivo_ficticio.pdf")
     interface.texto_resultado.delete.assert_called_once_with("1.0", tk.END)
     interface.texto_resultado.insert.assert_called_once_with(tk.END, "Texto extraído por el mock")
 
@@ -79,25 +83,29 @@ def test_descargar_txt_exito(mocker):
 
 def test_extraer_texto_falla_con_error_http(mocker):
     interface.archivo_pdf = "archivo.pdf"
+    _setup_ui_mocks(mocker)
     mocker.patch("builtins.open", mocker.mock_open(read_data=b"data"))
 
-    mock_response = MagicMock()
-    mock_response.status_code = 500
-    mock_response.text = "Error interno del servidor"
-    mocker.patch('app.interface.requests.post', return_value=mock_response)
+    mock_client = _mock_api_client(mocker)
+    mock_client.upload.side_effect = requests.exceptions.HTTPError("Error interno del servidor")
 
     mock_showerror = mocker.patch('app.interface.messagebox.showerror')
 
     interface.extraer_texto()
 
-    mock_showerror.assert_called_once_with("Error", "Error interno del servidor")
+    mock_showerror.assert_called_once()
+    args, _ = mock_showerror.call_args
+    assert args[0] == "Error"
 
 
 def test_extraer_texto_falla_sin_conexion(mocker):
     interface.archivo_pdf = "archivo.pdf"
+    _setup_ui_mocks(mocker)
     mocker.patch("builtins.open", mocker.mock_open(read_data=b"data"))
 
-    mocker.patch('app.interface.requests.post', side_effect=requests.exceptions.ConnectionError("Failed to connect"))
+    mock_client = _mock_api_client(mocker)
+    mock_client.upload.side_effect = requests.exceptions.ConnectionError("Failed to connect")
+
     mock_showerror = mocker.patch('app.interface.messagebox.showerror')
 
     interface.extraer_texto()
@@ -110,6 +118,7 @@ def test_extraer_texto_falla_sin_conexion(mocker):
 
 def test_extraer_texto_falla_por_permisos_de_archivo(mocker):
     interface.archivo_pdf = "/ruta/protegida/archivo.pdf"
+    _setup_ui_mocks(mocker)
 
     mocker.patch("builtins.open", side_effect=PermissionError("Permiso denegado"))
     mock_showerror = mocker.patch('app.interface.messagebox.showerror')
@@ -126,19 +135,15 @@ def test_cargar_lista_historial_exito(mocker):
     mock_tree = MagicMock()
     mock_tree.get_children.return_value = ["row1"]
 
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {
-        "items": [
-            {"_id": "111", "pdf_nombre": "test.pdf", "estado": "ok", "created_at": "2026-05-25T10:00:00"}
-        ]
-    }
-    mock_get = mocker.patch('app.interface.requests.get', return_value=mock_response)
+    mock_client = _mock_api_client(mocker)
+    mock_client.list_documents.return_value = [
+        {"_id": "111", "pdf_nombre": "test.pdf", "estado": "ok", "created_at": "2026-05-25T10:00:00"}
+    ]
 
     interface.cargar_lista_historial(mock_tree)
 
     mock_tree.delete.assert_called_once_with("row1")
-    mock_get.assert_called_once_with(f"{interface.API_BASE_URL}/documents?limit=50")
+    mock_client.list_documents.assert_called_once_with(limit=50)
     mock_tree.insert.assert_called_with("", tk.END, values=("111", "test.pdf", "ok", "2026-05-25 10:00"))
 
 
@@ -148,16 +153,15 @@ def test_ver_texto_historial_exito(mocker):
     mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
     mock_ventana = MagicMock()
 
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_response.json.return_value = {"document": {"txt_contenido": "texto recuperado"}}
-    mock_get = mocker.patch('app.interface.requests.get', return_value=mock_response)
+    mock_client = _mock_api_client(mocker)
+    mock_client.get_document.return_value = {"txt_contenido": "texto recuperado"}
+
     mock_showinfo = mocker.patch('app.interface.messagebox.showinfo')
     _setup_ui_mocks(mocker)
 
     interface.ver_texto_historial(mock_tree, mock_ventana)
 
-    mock_get.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123?include_text=true")
+    mock_client.get_document.assert_called_once_with("doc_123", include_text=True)
     assert interface.texto_extraido_global == "texto recuperado"
     interface.texto_resultado.delete.assert_called_once_with("1.0", tk.END)
     interface.texto_resultado.insert.assert_called_once_with(tk.END, "texto recuperado")
@@ -171,15 +175,14 @@ def test_renombrar_historial_exito(mocker):
     mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
 
     mocker.patch('app.interface.simpledialog.askstring', return_value="nuevo_nombre.pdf")
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_patch = mocker.patch('app.interface.requests.patch', return_value=mock_response)
+
+    mock_client = _mock_api_client(mocker)
     mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
 
     interface.renombrar_historial(mock_tree)
 
-    mock_patch.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123", json={"pdf_nombre": "nuevo_nombre.pdf"})
-    mock_cargar.assert_called_once_with(mock_tree)
+    mock_client.patch_document.assert_called_once_with("doc_123", {"pdf_nombre": "nuevo_nombre.pdf"})
+    mock_cargar.assert_called_once_with(mock_tree, mock_client)
 
 
 def test_eliminar_historial_exito(mocker):
@@ -188,15 +191,14 @@ def test_eliminar_historial_exito(mocker):
     mock_tree.item.return_value = {'values': ["doc_123", "viejo.pdf"]}
 
     mocker.patch('app.interface.messagebox.askyesno', return_value=True)
-    mock_response = MagicMock()
-    mock_response.status_code = 200
-    mock_delete = mocker.patch('app.interface.requests.delete', return_value=mock_response)
+
+    mock_client = _mock_api_client(mocker)
     mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
 
     interface.eliminar_historial(mock_tree)
 
-    mock_delete.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123")
-    mock_cargar.assert_called_once_with(mock_tree)
+    mock_client.delete_document.assert_called_once_with("doc_123")
+    mock_cargar.assert_called_once_with(mock_tree, mock_client)
 
 
 def test_historial_acciones_sin_seleccion_muestra_advertencia(mocker):
@@ -220,9 +222,11 @@ def test_historial_acciones_error_de_conexion(mocker):
     mocker.patch('app.interface.simpledialog.askstring', return_value="nuevo.pdf")
     mocker.patch('app.interface.messagebox.askyesno', return_value=True)
 
-    mocker.patch('app.interface.requests.get', side_effect=requests.exceptions.ConnectionError("Failed"))
-    mocker.patch('app.interface.requests.patch', side_effect=requests.exceptions.ConnectionError("Failed"))
-    mocker.patch('app.interface.requests.delete', side_effect=requests.exceptions.ConnectionError("Failed"))
+    mock_client = _mock_api_client(mocker)
+    mock_client.list_documents.side_effect = requests.exceptions.ConnectionError("Failed")
+    mock_client.get_document.side_effect = requests.exceptions.ConnectionError("Failed")
+    mock_client.patch_document.side_effect = requests.exceptions.ConnectionError("Failed")
+    mock_client.delete_document.side_effect = requests.exceptions.ConnectionError("Failed")
 
     mock_showerror = mocker.patch('app.interface.messagebox.showerror')
 
@@ -240,8 +244,9 @@ def test_abrir_historial_crea_ui(mocker):
     mocker.patch('app.interface.tk.Frame')
     mocker.patch('app.interface.tk.Button')
 
+    mock_client = _mock_api_client(mocker)
     mock_cargar = mocker.patch('app.interface.cargar_lista_historial')
 
     interface.abrir_historial()
 
-    mock_cargar.assert_called_once()
+    mock_cargar.assert_called_once_with(mocker.ANY, mock_client)

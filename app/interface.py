@@ -10,6 +10,45 @@ logger.setLevel(logging.INFO)
 
 API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
 
+
+class ApiClient:
+    """Cliente HTTP desacoplado para la API del backend."""
+
+    def __init__(self, base_url: str = API_BASE_URL):
+        self.base_url = base_url.rstrip("/")
+
+    def upload(self, file_path: str, filename: str) -> dict:
+        with open(file_path, "rb") as pdf:
+            files = {"file": (filename, pdf, "application/pdf")}
+        response = requests.post(f"{self.base_url}/documents/upload", files=files)
+        response.raise_for_status()
+        return response.json()
+
+    def list_documents(self, limit: int = 50) -> list:
+        response = requests.get(f"{self.base_url}/documents", params={"limit": limit})
+        response.raise_for_status()
+        return response.json().get("items", [])
+
+    def get_document(self, doc_id: str, include_text: bool = True) -> dict:
+        params = {"include_text": "true" if include_text else "false"}
+        response = requests.get(f"{self.base_url}/documents/{doc_id}", params=params)
+        response.raise_for_status()
+        return response.json().get("document", {})
+
+    def patch_document(self, doc_id: str, data: dict) -> dict:
+        response = requests.patch(f"{self.base_url}/documents/{doc_id}", json=data)
+        response.raise_for_status()
+        return response.json()
+
+    def delete_document(self, doc_id: str) -> dict:
+        response = requests.delete(f"{self.base_url}/documents/{doc_id}")
+        response.raise_for_status()
+        return response.json()
+
+
+# Instancia por defecto (puede ser reemplazada para testing)
+api_client = ApiClient()
+
 archivo_pdf = None
 texto_extraido_global = ""
 ventana = None
@@ -36,8 +75,9 @@ def seleccionar_pdf():
 
 
 # Enviar PDF al backend
-def extraer_texto():
+def extraer_texto(client: ApiClient = None):
     global texto_extraido_global
+    client = client or api_client
 
     if not archivo_pdf:
         logger.warning("Extraction attempted but no PDF was selected")
@@ -50,38 +90,16 @@ def extraer_texto():
     logger.info("Starting text extraction process for file: %s", archivo_pdf)
 
     try:
-        with open(archivo_pdf, "rb") as pdf:
-            files = {
-                "file": (
-                    "archivo.pdf",
-                    pdf,
-                    "application/pdf"
-                )
-            }
+        filename = os.path.basename(archivo_pdf)
+        data = client.upload(archivo_pdf, filename)
 
-            logger.debug("Sending POST request to /documents/upload")
-            response = requests.post(
-                f"{API_BASE_URL}/documents/upload",
-                files=files
-            )
+        logger.info("Backend request successful (200 OK)")
 
-        if response.status_code == 200:
-            logger.info("Backend request successful (200 OK)")
-            data = response.json()
+        texto_extraido_global = data.get("extracted_text", "")
+        logger.debug("Received extracted text length=%d", len(texto_extraido_global))
 
-            texto_extraido_global = data.get("extracted_text", "")
-            logger.debug("Received extracted text length=%d", len(texto_extraido_global))
-
-            texto_resultado.delete("1.0", tk.END)
-            texto_resultado.insert(tk.END, texto_extraido_global)
-
-        else:
-            logger.error(
-                "Backend request failed: status_code=%d response=%s",
-                response.status_code,
-                response.text
-            )
-            messagebox.showerror("Error", response.text)
+        texto_resultado.delete("1.0", tk.END)
+        texto_resultado.insert(tk.END, texto_extraido_global)
 
     except ConnectionError:
         logger.error("Failed to connect to backend at %s", API_BASE_URL)
@@ -133,32 +151,27 @@ def descargar_txt():
         logger.debug("TXT save dialog cancelled by user")
 
 
-def cargar_lista_historial(tree):
+def cargar_lista_historial(tree, client: ApiClient = None):
+    client = client or api_client
     logger.debug("Fetching document history from backend")
     for row in tree.get_children():
         tree.delete(row)
     try:
-        response = requests.get(f"{API_BASE_URL}/documents?limit=50")
-        if response.status_code == 200:
-            docs = response.json().get("items", [])
-            logger.info("History loaded successfully: %d items retrieved", len(docs))
-            for d in docs:
-                fecha = d.get("created_at", "")[:16].replace("T", " ")
-                tree.insert(
-                    "",
-                    tk.END,
-                    values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
-                )
-        else:
-            logger.error(
-                "Failed to load history: status_code=%d response=%s",
-                response.status_code,
-                response.text
+        docs = client.list_documents(limit=50)
+        logger.info("History loaded successfully: %d items retrieved", len(docs))
+        for d in docs:
+            fecha = d.get("created_at", "")[:16].replace("T", " ")
+            tree.insert(
+                "",
+                tk.END,
+                values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
             )
-            messagebox.showerror("Error", "No se pudo cargar el historial.")
     except ConnectionError as e:
         logger.error("Connection error while fetching history: %s", e)
         messagebox.showerror("Error", "Servidor desconectado.")
+    except Exception as e:
+        logger.error("Failed to load history: %s", e)
+        messagebox.showerror("Error", "No se pudo cargar el historial.")
 
 
 def _get_selected_document(tree) -> str | None:
@@ -170,7 +183,8 @@ def _get_selected_document(tree) -> str | None:
     return tree.item(seleccion[0])['values'][0]
 
 
-def ver_texto_historial(tree, ventana_historial):
+def ver_texto_historial(tree, ventana_historial, client: ApiClient = None):
+    client = client or api_client
     global texto_extraido_global
     doc_id = _get_selected_document(tree)
     if doc_id is None:
@@ -178,31 +192,26 @@ def ver_texto_historial(tree, ventana_historial):
     logger.info("Fetching text for document id: %s", doc_id)
 
     try:
-        resp = requests.get(f"{API_BASE_URL}/documents/{doc_id}?include_text=true")
-        if resp.status_code == 200:
-            data = resp.json().get("document", {})
-            texto = data.get("txt_contenido", "")
+        data = client.get_document(doc_id, include_text=True)
+        texto = data.get("txt_contenido", "")
 
-            texto_extraido_global = texto
-            texto_resultado.delete("1.0", tk.END)
-            texto_resultado.insert(tk.END, texto_extraido_global)
+        texto_extraido_global = texto
+        texto_resultado.delete("1.0", tk.END)
+        texto_resultado.insert(tk.END, texto_extraido_global)
 
-            logger.info("Text successfully loaded into main window for document id: %s", doc_id)
-            messagebox.showinfo("Éxito", "Texto cargado en la pantalla principal.")
-            ventana_historial.destroy()
-        else:
-            logger.error(
-                "Failed to load document text: status_code=%d response=%s",
-                resp.status_code,
-                resp.text
-            )
-            messagebox.showerror("Error", "No se pudo cargar el documento.")
+        logger.info("Text successfully loaded into main window for document id: %s", doc_id)
+        messagebox.showinfo("Éxito", "Texto cargado en la pantalla principal.")
+        ventana_historial.destroy()
     except ConnectionError as e:
         logger.error("Connection error while fetching document text: %s", e)
         messagebox.showerror("Error", "Servidor desconectado.")
+    except Exception as e:
+        logger.error("Failed to load document text: %s", e)
+        messagebox.showerror("Error", "No se pudo cargar el documento.")
 
 
-def renombrar_historial(tree):
+def renombrar_historial(tree, client: ApiClient = None):
+    client = client or api_client
     doc_id = _get_selected_document(tree)
     if doc_id is None:
         return
@@ -224,28 +233,21 @@ def renombrar_historial(tree):
             nuevo_nombre
         )
         try:
-            resp = requests.patch(
-                f"{API_BASE_URL}/documents/{doc_id}",
-                json={"pdf_nombre": nuevo_nombre}
-            )
-            if resp.status_code == 200:
-                logger.info("Document successfully renamed")
-                cargar_lista_historial(tree)
-            else:
-                logger.error(
-                    "Failed to rename document: status_code=%d response=%s",
-                    resp.status_code,
-                    resp.text
-                )
-                messagebox.showerror("Error", f"Fallo al renombrar: {resp.json().get('detail')}")
+            client.patch_document(doc_id, {"pdf_nombre": nuevo_nombre})
+            logger.info("Document successfully renamed")
+            cargar_lista_historial(tree, client)
         except ConnectionError as e:
             logger.error("Connection error while renaming document: %s", e)
             messagebox.showerror("Error", "Servidor desconectado.")
+        except Exception as e:
+            logger.error("Failed to rename document: %s", e)
+            messagebox.showerror("Error", f"Fallo al renombrar: {e}")
     else:
         logger.debug("Rename dialog cancelled by user or name unchanged")
 
 
-def eliminar_historial(tree):
+def eliminar_historial(tree, client: ApiClient = None):
+    client = client or api_client
     doc_id = _get_selected_document(tree)
     if doc_id is None:
         return
@@ -253,20 +255,15 @@ def eliminar_historial(tree):
     if messagebox.askyesno("Confirmar", msg):
         logger.info("Attempting to delete document id: %s", doc_id)
         try:
-            resp = requests.delete(f"{API_BASE_URL}/documents/{doc_id}")
-            if resp.status_code == 200:
-                logger.info("Document successfully deleted")
-                cargar_lista_historial(tree)
-            else:
-                logger.error(
-                    "Failed to delete document: status_code=%d response=%s",
-                    resp.status_code,
-                    resp.text
-                )
-                messagebox.showerror("Error", "No se pudo eliminar.")
+            client.delete_document(doc_id)
+            logger.info("Document successfully deleted")
+            cargar_lista_historial(tree, client)
         except ConnectionError as e:
             logger.error("Connection error while deleting document: %s", e)
             messagebox.showerror("Error", "Servidor desconectado.")
+        except Exception as e:
+            logger.error("Failed to delete document: %s", e)
+            messagebox.showerror("Error", "No se pudo eliminar.")
     else:
         logger.debug("Delete confirmation cancelled by user")
 
@@ -300,7 +297,7 @@ def abrir_historial():
     btn_ver = tk.Button(
         panel_botones,
         text="Cargar Texto",
-        command=lambda: ver_texto_historial(tree, ventana_historial),
+        command=lambda: ver_texto_historial(tree, ventana_historial, api_client),
         bg="#2196F3",
         fg="black",
         font=("Arial", 10, "bold")
@@ -310,7 +307,7 @@ def abrir_historial():
     btn_renombrar = tk.Button(
         panel_botones,
         text="Renombrar",
-        command=lambda: renombrar_historial(tree),
+        command=lambda: renombrar_historial(tree, api_client),
         bg="#FFEB3B",
         fg="black",
         font=("Arial", 10, "bold")
@@ -320,7 +317,7 @@ def abrir_historial():
     btn_eliminar = tk.Button(
         panel_botones,
         text="Eliminar",
-        command=lambda: eliminar_historial(tree),
+        command=lambda: eliminar_historial(tree, api_client),
         bg="#F44336",
         fg="black",
         font=("Arial", 10, "bold")
@@ -330,14 +327,14 @@ def abrir_historial():
     btn_actualizar = tk.Button(
         panel_botones,
         text="Actualizar Lista",
-        command=lambda: cargar_lista_historial(tree),
+        command=lambda: cargar_lista_historial(tree, api_client),
         bg="#4CAF50",
         fg="black",
         font=("Arial", 10, "bold")
     )
     btn_actualizar.pack(side=tk.LEFT, padx=5)
 
-    cargar_lista_historial(tree)
+    cargar_lista_historial(tree, api_client)
 
 
 # Ejecutar ventana
@@ -389,7 +386,7 @@ if __name__ == "__main__":
     boton_extraer = tk.Button(
         ventana,
         text="Extraer Texto",
-        command=extraer_texto,
+        command=lambda: extraer_texto(api_client),
         bg="#2196F3",
         fg="black",
         font=("Arial", 12),
