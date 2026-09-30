@@ -1,8 +1,17 @@
 import requests
 import tkinter as tk
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from app import interface
+
+
+def _setup_ui_mocks(mocker):
+    """Configura mocks para los elementos de UI globales."""
+    mock_label = MagicMock()
+    mock_text = MagicMock()
+    mocker.patch.object(interface, 'label_archivo', mock_label)
+    mocker.patch.object(interface, 'texto_resultado', mock_text)
+    return mock_label, mock_text
 
 
 def test_seleccionar_pdf_exito(mocker):
@@ -10,18 +19,21 @@ def test_seleccionar_pdf_exito(mocker):
     ruta_falsa = "/ruta/falsa/mi_documento.pdf"
 
     mocker.patch('app.interface.filedialog.askopenfilename', return_value=ruta_falsa)
+    _setup_ui_mocks(mocker)
 
     interface.seleccionar_pdf()
 
     assert interface.archivo_pdf == ruta_falsa
-    assert "mi_documento.pdf" in interface.label_archivo.cget("text")
+    interface.label_archivo.config.assert_called_once()
+    args, kwargs = interface.label_archivo.config.call_args
+    assert "mi_documento.pdf" in kwargs.get("text", "")
 
 
 def test_extraer_texto_exito(mocker):
 
     interface.archivo_pdf = "archivo_ficticio.pdf"
     interface.texto_extraido_global = ""
-    interface.texto_resultado.delete("1.0", tk.END)
+    _setup_ui_mocks(mocker)
 
     mocker.patch("builtins.open", mocker.mock_open(read_data=b"contenido pdf fake"))
 
@@ -34,8 +46,8 @@ def test_extraer_texto_exito(mocker):
 
     assert interface.texto_extraido_global == "Texto extraído por el mock"
 
-    texto_en_pantalla = interface.texto_resultado.get("1.0", tk.END).strip()
-    assert texto_en_pantalla == "Texto extraído por el mock"
+    interface.texto_resultado.delete.assert_called_once_with("1.0", tk.END)
+    interface.texto_resultado.insert.assert_called_once_with(tk.END, "Texto extraído por el mock")
 
 
 def test_descargar_txt_sin_texto_muestra_alerta(mocker):
@@ -126,7 +138,7 @@ def test_cargar_lista_historial_exito(mocker):
     interface.cargar_lista_historial(mock_tree)
 
     mock_tree.delete.assert_called_once_with("row1")
-    mock_get.assert_called_once_with("http://127.0.0.1:8000/documents?limit=50")
+    mock_get.assert_called_once_with(f"{interface.API_BASE_URL}/documents?limit=50")
     mock_tree.insert.assert_called_with("", tk.END, values=("111", "test.pdf", "ok", "2026-05-25 10:00"))
 
 
@@ -141,14 +153,14 @@ def test_ver_texto_historial_exito(mocker):
     mock_response.json.return_value = {"document": {"txt_contenido": "texto recuperado"}}
     mock_get = mocker.patch('app.interface.requests.get', return_value=mock_response)
     mock_showinfo = mocker.patch('app.interface.messagebox.showinfo')
-
-    interface.texto_resultado.delete("1.0", tk.END)
+    _setup_ui_mocks(mocker)
 
     interface.ver_texto_historial(mock_tree, mock_ventana)
 
-    mock_get.assert_called_with("http://127.0.0.1:8000/documents/doc_123?include_text=true")
+    mock_get.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123?include_text=true")
     assert interface.texto_extraido_global == "texto recuperado"
-    assert interface.texto_resultado.get("1.0", tk.END).strip() == "texto recuperado"
+    interface.texto_resultado.delete.assert_called_once_with("1.0", tk.END)
+    interface.texto_resultado.insert.assert_called_once_with(tk.END, "texto recuperado")
     mock_showinfo.assert_called_once()
     mock_ventana.destroy.assert_called_once()
 
@@ -166,7 +178,7 @@ def test_renombrar_historial_exito(mocker):
 
     interface.renombrar_historial(mock_tree)
 
-    mock_patch.assert_called_with("http://127.0.0.1:8000/documents/doc_123", json={"pdf_nombre": "nuevo_nombre.pdf"})
+    mock_patch.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123", json={"pdf_nombre": "nuevo_nombre.pdf"})
     mock_cargar.assert_called_once_with(mock_tree)
 
 
@@ -183,7 +195,7 @@ def test_eliminar_historial_exito(mocker):
 
     interface.eliminar_historial(mock_tree)
 
-    mock_delete.assert_called_with("http://127.0.0.1:8000/documents/doc_123")
+    mock_delete.assert_called_with(f"{interface.API_BASE_URL}/documents/doc_123")
     mock_cargar.assert_called_once_with(mock_tree)
 
 

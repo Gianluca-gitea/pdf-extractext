@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk, simpledialog
 import requests
@@ -7,8 +8,13 @@ import logging
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
+API_BASE_URL = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+
 archivo_pdf = None
 texto_extraido_global = ""
+ventana = None
+label_archivo = None
+texto_resultado = None
 
 
 # Seleccionar PDF
@@ -55,7 +61,7 @@ def extraer_texto():
 
             logger.debug("Sending POST request to /documents/upload")
             response = requests.post(
-                "http://127.0.0.1:8000/documents/upload",
+                f"{API_BASE_URL}/documents/upload",
                 files=files
             )
 
@@ -78,10 +84,10 @@ def extraer_texto():
             messagebox.showerror("Error", response.text)
 
     except ConnectionError:
-        logger.error("Failed to connect to backend at http://127.0.0.1:8000")
+        logger.error("Failed to connect to backend at %s", API_BASE_URL)
         messagebox.showerror(
             "Error de Conexión",
-            "No se pudo conectar con el servidor backend.\n\n"
+            f"No se pudo conectar con el servidor backend en {API_BASE_URL}.\n\n"
             "Asegurate de que Uvicorn esté corriendo en el puerto 8000."
         )
     except Exception as e:
@@ -132,7 +138,7 @@ def cargar_lista_historial(tree):
     for row in tree.get_children():
         tree.delete(row)
     try:
-        response = requests.get("http://127.0.0.1:8000/documents?limit=50")
+        response = requests.get(f"{API_BASE_URL}/documents?limit=50")
         if response.status_code == 200:
             docs = response.json().get("items", [])
             logger.info("History loaded successfully: %d items retrieved", len(docs))
@@ -172,7 +178,7 @@ def ver_texto_historial(tree, ventana_historial):
     logger.info("Fetching text for document id: %s", doc_id)
 
     try:
-        resp = requests.get(f"http://127.0.0.1:8000/documents/{doc_id}?include_text=true")
+        resp = requests.get(f"{API_BASE_URL}/documents/{doc_id}?include_text=true")
         if resp.status_code == 200:
             data = resp.json().get("document", {})
             texto = data.get("txt_contenido", "")
@@ -219,7 +225,7 @@ def renombrar_historial(tree):
         )
         try:
             resp = requests.patch(
-                f"http://127.0.0.1:8000/documents/{doc_id}",
+                f"{API_BASE_URL}/documents/{doc_id}",
                 json={"pdf_nombre": nuevo_nombre}
             )
             if resp.status_code == 200:
@@ -247,7 +253,7 @@ def eliminar_historial(tree):
     if messagebox.askyesno("Confirmar", msg):
         logger.info("Attempting to delete document id: %s", doc_id)
         try:
-            resp = requests.delete(f"http://127.0.0.1:8000/documents/{doc_id}")
+            resp = requests.delete(f"{API_BASE_URL}/documents/{doc_id}")
             if resp.status_code == 200:
                 logger.info("Document successfully deleted")
                 cargar_lista_historial(tree)
@@ -334,107 +340,106 @@ def abrir_historial():
     cargar_lista_historial(tree)
 
 
-# Ventana principal
-logger.info("Initializing Extractor PDF Tkinter UI")
-ventana = tk.Tk()
-
-ventana.title("Extractor PDF")
-ventana.geometry("900x650")
-ventana.config(bg="#1e1e1e")
-
-# Título
-titulo = tk.Label(
-    ventana,
-    text="Extractor de PDF",
-    font=("Arial", 24, "bold"),
-    bg="#1e1e1e",
-    fg="white"
-)
-
-titulo.pack(pady=20)
-
-# Botón seleccionar PDF
-boton_pdf = tk.Button(
-    ventana,
-    text="Seleccionar PDF",
-    command=seleccionar_pdf,
-    bg="#4CAF50",
-    fg="black",
-    font=("Arial", 12),
-    padx=10,
-    pady=5
-)
-
-boton_pdf.pack(pady=10)
-
-# Label PDF seleccionado
-label_archivo = tk.Label(
-    ventana,
-    text="Ningún PDF seleccionado",
-    bg="#1e1e1e",
-    fg="white",
-    font=("Arial", 10)
-)
-
-label_archivo.pack(pady=10)
-
-# Botón extraer texto
-boton_extraer = tk.Button(
-    ventana,
-    text="Extraer Texto",
-    command=extraer_texto,
-    bg="#2196F3",
-    fg="black",
-    font=("Arial", 12),
-    padx=10,
-    pady=5
-)
-
-boton_extraer.pack(pady=10)
-
-# Botón descargar TXT
-boton_descargar = tk.Button(
-    ventana,
-    text="Descargar TXT",
-    command=descargar_txt,
-    bg="#FF9800",
-    fg="black",
-    font=("Arial", 12),
-    padx=10,
-    pady=5
-)
-
-boton_descargar.pack(pady=10)
-
-boton_historial = tk.Button(
-    ventana,
-    text="Ver Historial",
-    command=abrir_historial,
-    bg="#9C27B0",
-    fg="black",
-    font=("Arial", 12),
-    padx=10,
-    pady=5
-)
-boton_historial.pack(pady=5)
-
-# Área de texto
-texto_resultado = tk.Text(
-    ventana,
-    wrap="word",
-    font=("Arial", 11),
-    bg="#2d2d2d",
-    fg="white"
-)
-
-texto_resultado.pack(
-    padx=20,
-    pady=20,
-    fill="both",
-    expand=True
-)
-
 # Ejecutar ventana
 if __name__ == "__main__":
+    logger.info("Initializing Extractor PDF Tkinter UI")
+    ventana = tk.Tk()
+
+    ventana.title("Extractor PDF")
+    ventana.geometry("900x650")
+    ventana.config(bg="#1e1e1e")
+
+    # Título
+    titulo = tk.Label(
+        ventana,
+        text="Extractor de PDF",
+        font=("Arial", 24, "bold"),
+        bg="#1e1e1e",
+        fg="white"
+    )
+
+    titulo.pack(pady=20)
+
+    # Botón seleccionar PDF
+    boton_pdf = tk.Button(
+        ventana,
+        text="Seleccionar PDF",
+        command=seleccionar_pdf,
+        bg="#4CAF50",
+        fg="black",
+        font=("Arial", 12),
+        padx=10,
+        pady=5
+    )
+
+    boton_pdf.pack(pady=10)
+
+    # Label PDF seleccionado
+    label_archivo = tk.Label(
+        ventana,
+        text="Ningún PDF seleccionado",
+        bg="#1e1e1e",
+        fg="white",
+        font=("Arial", 10)
+    )
+
+    label_archivo.pack(pady=10)
+
+    # Botón extraer texto
+    boton_extraer = tk.Button(
+        ventana,
+        text="Extraer Texto",
+        command=extraer_texto,
+        bg="#2196F3",
+        fg="black",
+        font=("Arial", 12),
+        padx=10,
+        pady=5
+    )
+
+    boton_extraer.pack(pady=10)
+
+    # Botón descargar TXT
+    boton_descargar = tk.Button(
+        ventana,
+        text="Descargar TXT",
+        command=descargar_txt,
+        bg="#FF9800",
+        fg="black",
+        font=("Arial", 12),
+        padx=10,
+        pady=5
+    )
+
+    boton_descargar.pack(pady=10)
+
+    boton_historial = tk.Button(
+        ventana,
+        text="Ver Historial",
+        command=abrir_historial,
+        bg="#9C27B0",
+        fg="black",
+        font=("Arial", 12),
+        padx=10,
+        pady=5
+    )
+    boton_historial.pack(pady=5)
+
+    # Área de texto
+    texto_resultado = tk.Text(
+        ventana,
+        wrap="word",
+        font=("Arial", 11),
+        bg="#2d2d2d",
+        fg="white"
+    )
+
+    texto_resultado.pack(
+        padx=20,
+        pady=20,
+        fill="both",
+        expand=True
+    )
+
     logger.info("Entering Tkinter main loop")
     ventana.mainloop()
