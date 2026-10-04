@@ -220,32 +220,3 @@ El proyecto cuenta con una cobertura exhaustiva de pruebas (unitarias, de integr
 ```bash
 uv run pytest
 ```
-
-### Prueba de carga (k6)
-
-`tests/stress/spike_tests.js` sube PDFs elegidos al azar a `POST /documents/upload` con un pico de 100 usuarios virtuales (10s de subida, 20s sostenido, 10s de bajada).
-
-Los PDFs deben estar en `tests/stress/pdfs/`:
-- `2020-Scrum-Guide-Spanish-Latin-South-American.pdf`
-- `Essential-Kanban-Condensed-Spanish.pdf`
-- `Filosofia Lean.pdf`
-- `scrum_manager_historias_usuario.pdf`
-
-1. Instalar [k6](https://grafana.com/docs/k6/latest/set-up/install-k6/) (en Arch/CachyOS: `yay -S k6-bin`).
-2. Levantar la API:
-   ```bash
-   uv run uvicorn app.main:app --host 127.0.0.1 --port 8000
-   ```
-3. En otra terminal, desde la raíz del proyecto:
-   ```bash
-   k6 run tests/stress/spike_tests.js
-   k6 run -e BASE_URL=http://otro-host:8000 tests/stress/spike_tests.js
-   ```
-
-**Variante con base vacía:** `tests/stress/spike_tests_clean_db.js` corre el mismo test, pero antes borra todos los documentos a través de la API. Así ningún PDF se resuelve por deduplicación y se mide la extracción real:
-
-```bash
-k6 run tests/stress/spike_tests_clean_db.js
-```
-
-> ⚠️ Borra **todos** los documentos de la base a la que apunta la API. Usala contra una base de pruebas (`MONGODB_DB_NAME=pdf-extractext-k6`).
