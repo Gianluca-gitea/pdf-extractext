@@ -4,6 +4,11 @@ services:
     build: .
     ports:
       - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
     environment:
       - APP_NAME=PDF Extractext API
       - APP_VERSION=0.1.0

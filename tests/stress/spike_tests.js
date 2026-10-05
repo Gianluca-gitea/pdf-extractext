@@ -31,7 +31,7 @@ export default function () {
         file: http.file(randomPdf.data, randomPdf.name, 'application/pdf'),
     };
 
-    const res = http.post(`${BASE_URL}/documents/upload`, body);
+    const res = http.post(`${BASE_URL}/extract`, body);
 
     statusTrend.add(res.status);
 
