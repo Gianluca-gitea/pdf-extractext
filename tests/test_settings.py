@@ -78,3 +78,9 @@ def test_get_settings_uses_default_for_invalid_extraction_limits(monkeypatch) ->
 
     assert settings.extract_workers == DEFAULT_EXTRACT_WORKERS
     assert settings.max_pending_extractions == DEFAULT_MAX_PENDING_EXTRACTIONS
+
+
+def test_get_settings_allows_100_pending_extractions_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("APP_MAX_PENDING_EXTRACTIONS", raising=False)
+
+    assert get_settings().max_pending_extractions == 100
