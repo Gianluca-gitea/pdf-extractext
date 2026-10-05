@@ -61,6 +61,7 @@ def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch) -> None:
     process_mock.assert_called_once_with(
         file_name="documento.pdf",
         file_bytes=pdf_bytes,
+        ocr_enabled=main_module.settings.ocr_enabled,
     )
     assert response.json()["extracted_text"] == "texto desde service"
 

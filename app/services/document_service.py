@@ -7,7 +7,6 @@ from bson.objectid import ObjectId
 from app.repositories.document_repository import DocumentRepository
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 ALLOWED_ESTADOS = {"pendiente", "ok", "error"}
 ALLOWED_ESTADO_TRANSITIONS = {

@@ -24,7 +24,6 @@ dev = [
     "pytest==9.0.3",
     "pytest-cov==4.1.0",
     "black==26.3.1",
-    "ruff==0.3.0",
     "mypy==1.8.0"
 ]
 
@@ -61,12 +60,6 @@ extend-exclude = '''
 )/
 '''
 
-[tool.ruff]
-line-length = 100
-target-version = "py312"
-select = ["E", "F", "W", "I", "N"]
-exclude = [".venv", "build", "dist", "__pycache__"]
-
 [tool.mypy]
 python_version = "3.12"
 warn_return_any = true
@@ -90,6 +83,7 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "httpx2>=0.28.0",
     "pytest>=9.0.3",
     "pytest-mock>=3.15.1",

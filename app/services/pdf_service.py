@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import logging
+from collections import Counter
 
 from time import perf_counter
 from typing import Any
@@ -15,7 +16,6 @@ from pathlib import Path
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class InvalidPDFError(ValueError):
@@ -25,6 +25,9 @@ class InvalidPDFError(ValueError):
 INVALID_PDF_CONTENT_ERROR = "El contenido no corresponde a un PDF valido."
 TEXT_BLOCK = 0
 IMAGE_BLOCK = 1
+TEXT_ONLY_FLAGS = fitz.TEXTFLAGS_DICT & ~fitz.TEXT_PRESERVE_IMAGES
+H1_SIZE_RATIO = 1.5
+H2_SIZE_RATIO = 1.2
 
 
 def _join_spans(line: dict) -> str:
@@ -48,8 +51,8 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
 
     try:
         try:
-            from PIL import Image
             import pytesseract
+            from PIL import Image
         except Exception as exc:
             logger.warning("OCR dependencies not available: %s", exc)
             return ""
@@ -84,39 +87,90 @@ def _extract_text_from_block(block: dict) -> list[str]:
     return []
 
 
-def _extract_text_from_page(page) -> list[str]:
-    page_dict = page.get_text("dict", sort=True)
-    blocks = page_dict.get("blocks", [])
-    logger.debug("Extracting text from page: blocks=%d", len(blocks))
+def _page_blocks(page, ocr_enabled: bool) -> list[dict]:
+    flags = fitz.TEXTFLAGS_DICT if ocr_enabled else TEXT_ONLY_FLAGS
+    blocks = page.get_text("dict", flags=flags, sort=True).get("blocks", [])
+    logger.debug("Read page blocks: blocks=%d ocr=%s", len(blocks), ocr_enabled)
+    return blocks
+
+
+def _extract_text_from_page(page, ocr_enabled: bool) -> list[str]:
     return [
         text
-        for block in blocks
+        for block in _page_blocks(page, ocr_enabled)
         for text in _extract_text_from_block(block)
     ]
 
 
-def extract_text_from_pdf_bytes(file_bytes: bytes) -> str:
-    logger.info("Starting PDF text extraction: bytes=%d", len(file_bytes))
-
+def _open_pdf(file_bytes: bytes) -> fitz.Document:
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
 
     try:
-        doc = fitz.open(stream=file_bytes, filetype="pdf")
+        return fitz.open(stream=file_bytes, filetype="pdf")
     except Exception as exc:
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
+
+
+def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> str:
+    logger.info("Starting PDF text extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
+    doc = _open_pdf(file_bytes)
 
     logger.info("Opened PDF stream: pages=%d", len(doc))
 
     extracted_text = [
         text
         for page_num in range(len(doc))
-        for text in _extract_text_from_page(doc.load_page(page_num))
+        for text in _extract_text_from_page(doc.load_page(page_num), ocr_enabled)
     ]
 
     text_txt = _join_text_rows(extracted_text)
     logger.info("Extraction complete: pages=%d chars=%d", len(doc), len(text_txt))
     return text_txt
+
+
+def _span_sizes(block: dict) -> list[tuple[float, int]]:
+    return [
+        (round(span["size"], 1), len(span["text"].strip()))
+        for line in block.get("lines", [])
+        for span in line["spans"]
+        if span["text"].strip()
+    ]
+
+
+def _body_font_size(blocks: list[dict]) -> float:
+    chars_by_size = Counter()
+    for block in blocks:
+        for size, chars in _span_sizes(block):
+            chars_by_size[size] += chars
+    return chars_by_size.most_common(1)[0][0] if chars_by_size else 0.0
+
+
+def _to_markdown(block: dict, text: str, body_size: float) -> str:
+    sizes = [size for size, _ in _span_sizes(block)]
+    ratio = max(sizes) / body_size if sizes else 0
+    if ratio >= H1_SIZE_RATIO:
+        return "# " + text.replace("\n", " ")
+    if ratio >= H2_SIZE_RATIO:
+        return "## " + text.replace("\n", " ")
+    return text
+
+
+def extract_markdown_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> dict[str, str | int]:
+    logger.info("Starting PDF markdown extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
+
+    with _open_pdf(file_bytes) as doc:
+        blocks = [block for page in doc for block in _page_blocks(page, ocr_enabled)]
+        page_count = doc.page_count
+
+    body_size = _body_font_size(blocks)
+    content = "\n\n".join(
+        _to_markdown(block, text, body_size)
+        for block in blocks
+        for text in _extract_text_from_block(block)
+    )
+    logger.info("Markdown extraction complete: pages=%d chars=%d", page_count, len(content))
+    return {"content": content, "page_count": page_count}
 
 
 def _save_text_to_disk(file_name: str, text: str) -> str:
@@ -134,6 +188,7 @@ def process_pdf_upload(
     *,
     file_name: str,
     file_bytes: bytes,
+    ocr_enabled: bool,
     repository: DocumentRepository | None = None,
 ) -> dict[str, Any]:
     started_at = perf_counter()
@@ -165,7 +220,7 @@ def process_pdf_upload(
             "document": existing,
         }
 
-    texto_extraido = extract_text_from_pdf_bytes(file_bytes)
+    texto_extraido = extract_text_from_pdf_bytes(file_bytes, ocr_enabled=ocr_enabled)
     logger.debug(
         "Extracted text length=%d for filename=%s",
         len(texto_extraido),

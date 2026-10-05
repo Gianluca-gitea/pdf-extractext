@@ -5,7 +5,6 @@ from requests.exceptions import ConnectionError
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 archivo_pdf = None
 texto_extraido_global = ""
@@ -437,5 +436,6 @@ texto_resultado.pack(
 
 # Ejecutar ventana
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO)
     logger.info("Entering Tkinter main loop")
     ventana.mainloop()
