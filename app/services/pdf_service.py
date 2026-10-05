@@ -87,21 +87,6 @@ def _extract_text_from_block(block: dict) -> list[str]:
     return []
 
 
-def _page_blocks(page, ocr_enabled: bool) -> list[dict]:
-    flags = fitz.TEXTFLAGS_DICT if ocr_enabled else TEXT_ONLY_FLAGS
-    blocks = page.get_text("dict", flags=flags, sort=True).get("blocks", [])
-    logger.debug("Read page blocks: blocks=%d ocr=%s", len(blocks), ocr_enabled)
-    return blocks
-
-
-def _extract_text_from_page(page, ocr_enabled: bool) -> list[str]:
-    return [
-        text
-        for block in _page_blocks(page, ocr_enabled)
-        for text in _extract_text_from_block(block)
-    ]
-
-
 def _open_pdf(file_bytes: bytes) -> fitz.Document:
     if not file_bytes.startswith(b"%PDF-"):
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR)
@@ -112,20 +97,26 @@ def _open_pdf(file_bytes: bytes) -> fitz.Document:
         raise InvalidPDFError(INVALID_PDF_CONTENT_ERROR) from exc
 
 
+def _read_blocks(file_bytes: bytes, ocr_enabled: bool) -> tuple[list[dict], int]:
+    flags = fitz.TEXTFLAGS_DICT if ocr_enabled else TEXT_ONLY_FLAGS
+    with _open_pdf(file_bytes) as doc:
+        blocks = [
+            block
+            for page in doc
+            for block in page.get_text("dict", flags=flags, sort=True).get("blocks", [])
+        ]
+        logger.info("Opened PDF stream: pages=%d blocks=%d", doc.page_count, len(blocks))
+        return blocks, doc.page_count
+
+
 def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> str:
     logger.info("Starting PDF text extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
-    doc = _open_pdf(file_bytes)
+    blocks, page_count = _read_blocks(file_bytes, ocr_enabled)
 
-    logger.info("Opened PDF stream: pages=%d", len(doc))
-
-    extracted_text = [
-        text
-        for page_num in range(len(doc))
-        for text in _extract_text_from_page(doc.load_page(page_num), ocr_enabled)
-    ]
-
-    text_txt = _join_text_rows(extracted_text)
-    logger.info("Extraction complete: pages=%d chars=%d", len(doc), len(text_txt))
+    text_txt = _join_text_rows(
+        [text for block in blocks for text in _extract_text_from_block(block)]
+    )
+    logger.info("Extraction complete: pages=%d chars=%d", page_count, len(text_txt))
     return text_txt
 
 
@@ -159,10 +150,7 @@ def _to_markdown(block: dict, text: str, body_size: float) -> str:
 def extract_markdown_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> dict[str, str | int]:
     logger.info("Starting PDF markdown extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
 
-    with _open_pdf(file_bytes) as doc:
-        blocks = [block for page in doc for block in _page_blocks(page, ocr_enabled)]
-        page_count = doc.page_count
-
+    blocks, page_count = _read_blocks(file_bytes, ocr_enabled)
     body_size = _body_font_size(blocks)
     content = "\n\n".join(
         _to_markdown(block, text, body_size)
