@@ -16,10 +16,10 @@ const BASE_URL = __ENV.BASE_URL || 'http://localhost:8000';
 
 // Carga de PDFs en modo binario durante la inicialización (init context de k6)
 const pdfFiles = [
-    { name: '2020-Scrum-Guide-Spanish-Latin-South-American.pdf', data: open('./pdfs/2020-Scrum-Guide-Spanish-Latin-South-American.pdf', 'b') },
-    { name: 'Essential-Kanban-Condensed-Spanish.pdf', data: open('./pdfs/Essential-Kanban-Condensed-Spanish.pdf', 'b') },
-    { name: 'Filosofia Lean.pdf', data: open('./pdfs/Filosofia Lean.pdf', 'b') },
-    { name: 'scrum_manager_historias_usuario.pdf', data: open('./pdfs/scrum_manager_historias_usuario.pdf', 'b') },
+    open('./pdfs/2020-Scrum-Guide-Spanish-Latin-South-American.pdf', 'b'),
+    open('./pdfs/Essential-Kanban-Condensed-Spanish.pdf', 'b'),
+    open('./pdfs/Filosofia Lean.pdf', 'b'),
+    open('./pdfs/scrum_manager_historias_usuario.pdf', 'b'),
 ];
 
 export default function () {
@@ -27,7 +27,7 @@ export default function () {
     const randomPdf = pdfFiles[Math.floor(Math.random() * pdfFiles.length)];
 
     // Binario crudo en el body: evita el costo de parsear multipart en el servidor
-    const res = http.post(`${BASE_URL}/extract`, randomPdf.data, {
+    const res = http.post(`${BASE_URL}/extract`, randomPdf, {
         headers: { 'Content-Type': 'application/pdf' },
     });
 

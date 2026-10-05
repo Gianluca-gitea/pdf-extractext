@@ -12,7 +12,7 @@ upstream api {
 server {
     listen 80;
     access_log /dev/stdout upstream;
-    client_max_body_size 10m;
+    client_max_body_size 11m;
 
     location / {
         proxy_pass http://api;

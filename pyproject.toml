@@ -84,7 +84,6 @@ exclude_lines = [
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
-    "httpx2>=0.28.0",
     "pytest>=9.0.3",
     "pytest-mock>=3.15.1",
 ]
