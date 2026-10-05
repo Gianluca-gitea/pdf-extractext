@@ -1,5 +1,9 @@
 from app.settings import get_settings
-from app.settings import DEFAULT_MAX_PDF_SIZE_BYTES
+from app.settings import (
+    DEFAULT_EXTRACT_WORKERS,
+    DEFAULT_MAX_PDF_SIZE_BYTES,
+    DEFAULT_MAX_PENDING_EXTRACTIONS,
+)
 
 
 def test_get_settings_reads_environment_variables(monkeypatch) -> None:
@@ -48,3 +52,29 @@ def test_get_settings_keeps_ocr_disabled_for_unrecognized_value(monkeypatch) -> 
     monkeypatch.setenv("APP_OCR_ENABLED", "maybe")
 
     assert get_settings().ocr_enabled is False
+
+
+def test_get_settings_uses_one_extract_worker_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("APP_EXTRACT_WORKERS", raising=False)
+
+    assert get_settings().extract_workers == 1
+
+
+def test_get_settings_reads_extraction_limits_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("APP_EXTRACT_WORKERS", "3")
+    monkeypatch.setenv("APP_MAX_PENDING_EXTRACTIONS", "12")
+
+    settings = get_settings()
+
+    assert settings.extract_workers == 3
+    assert settings.max_pending_extractions == 12
+
+
+def test_get_settings_uses_default_for_invalid_extraction_limits(monkeypatch) -> None:
+    monkeypatch.setenv("APP_EXTRACT_WORKERS", "0")
+    monkeypatch.setenv("APP_MAX_PENDING_EXTRACTIONS", "muchas")
+
+    settings = get_settings()
+
+    assert settings.extract_workers == DEFAULT_EXTRACT_WORKERS
+    assert settings.max_pending_extractions == DEFAULT_MAX_PENDING_EXTRACTIONS

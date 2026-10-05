@@ -26,12 +26,10 @@ export default function () {
     // Selección aleatoria de un PDF de la lista
     const randomPdf = pdfFiles[Math.floor(Math.random() * pdfFiles.length)];
 
-    // La API espera el PDF como multipart/form-data en el campo "file"
-    const body = {
-        file: http.file(randomPdf.data, randomPdf.name, 'application/pdf'),
-    };
-
-    const res = http.post(`${BASE_URL}/extract`, body);
+    // Binario crudo en el body: evita el costo de parsear multipart en el servidor
+    const res = http.post(`${BASE_URL}/extract`, randomPdf.data, {
+        headers: { 'Content-Type': 'application/pdf' },
+    });
 
     statusTrend.add(res.status);
 
