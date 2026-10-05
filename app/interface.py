@@ -29,7 +29,7 @@ def seleccionar_pdf():
 
 
 # Enviar PDF al backend
-def extraer_texto():
+def _enviar_pdf(endpoint, campo_texto):
     global texto_extraido_global
 
     if not archivo_pdf:
@@ -52,9 +52,9 @@ def extraer_texto():
                 )
             }
 
-            logger.debug("Sending POST request to /documents/upload")
+            logger.debug("Sending POST request to %s", endpoint)
             response = requests.post(
-                "http://127.0.0.1:8000/documents/upload",
+                f"http://127.0.0.1:8000{endpoint}",
                 files=files
             )
 
@@ -62,7 +62,7 @@ def extraer_texto():
             logger.info("Backend request successful (200 OK)")
             data = response.json()
 
-            texto_extraido_global = data.get("extracted_text", "")
+            texto_extraido_global = data.get(campo_texto, "")
             logger.debug("Received extracted text length=%d", len(texto_extraido_global))
 
             texto_resultado.delete("1.0", tk.END)
@@ -88,10 +88,18 @@ def extraer_texto():
         messagebox.showerror("Error", str(e))
 
 
+def extraer_texto():
+    _enviar_pdf("/documents/upload", "extracted_text")
+
+
+def extraer_markdown():
+    _enviar_pdf("/extract", "content")
+
+
 # Descargar TXT
-def descargar_txt():
+def _descargar(extension, formato, descripcion):
     if not texto_extraido_global:
-        logger.warning("TXT download attempted but no text is available in memory")
+        logger.warning("%s download attempted but no text is available in memory", formato)
         messagebox.showwarning(
             "Advertencia",
             "No hay texto para descargar."
@@ -99,9 +107,9 @@ def descargar_txt():
         return
 
     archivo_guardado = filedialog.asksaveasfilename(
-        defaultextension=".txt",
-        filetypes=[("Text Files", "*.txt")],
-        title="Guardar TXT"
+        defaultextension=extension,
+        filetypes=[(descripcion, f"*{extension}")],
+        title=f"Guardar {formato}"
     )
 
     if archivo_guardado:
@@ -114,16 +122,24 @@ def descargar_txt():
             ) as file:
                 file.write(texto_extraido_global)
 
-            logger.info("TXT file successfully saved")
+            logger.info("%s file successfully saved", formato)
             messagebox.showinfo(
                 "Éxito",
-                "TXT descargado correctamente."
+                f"{formato} descargado correctamente."
             )
         except Exception as e:
-            logger.error("Failed to write TXT file to disk: %s", e, exc_info=True)
+            logger.error("Failed to write %s file to disk: %s", formato, e, exc_info=True)
             messagebox.showerror("Error", f"Error al guardar: {str(e)}")
     else:
-        logger.debug("TXT save dialog cancelled by user")
+        logger.debug("%s save dialog cancelled by user", formato)
+
+
+def descargar_txt():
+    _descargar(".txt", "TXT", "Text Files")
+
+
+def descargar_md():
+    _descargar(".md", "MD", "Markdown Files")
 
 
 def cargar_lista_historial(tree):
@@ -392,6 +408,19 @@ boton_extraer = tk.Button(
 
 boton_extraer.pack(pady=10)
 
+boton_extraer_md = tk.Button(
+    ventana,
+    text="Extraer Markdown",
+    command=extraer_markdown,
+    bg="#00BCD4",
+    fg="black",
+    font=("Arial", 12),
+    padx=10,
+    pady=5
+)
+
+boton_extraer_md.pack(pady=10)
+
 # Botón descargar TXT
 boton_descargar = tk.Button(
     ventana,
@@ -405,6 +434,19 @@ boton_descargar = tk.Button(
 )
 
 boton_descargar.pack(pady=10)
+
+boton_descargar_md = tk.Button(
+    ventana,
+    text="Descargar MD",
+    command=descargar_md,
+    bg="#FFC107",
+    fg="black",
+    font=("Arial", 12),
+    padx=10,
+    pady=5
+)
+
+boton_descargar_md.pack(pady=10)
 
 boton_historial = tk.Button(
     ventana,

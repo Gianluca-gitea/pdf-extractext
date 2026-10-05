@@ -233,3 +233,40 @@ def test_abrir_historial_crea_ui(mocker):
     interface.abrir_historial()
 
     mock_cargar.assert_called_once()
+
+
+def test_extraer_markdown_usa_extract_y_muestra_content(mocker):
+    interface.archivo_pdf = "archivo_ficticio.pdf"
+    interface.texto_extraido_global = ""
+    interface.texto_resultado.delete("1.0", tk.END)
+
+    mocker.patch("builtins.open", mocker.mock_open(read_data=b"contenido pdf fake"))
+
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"content": "# Titulo\n\nCuerpo", "page_count": 1}
+    mock_post = mocker.patch('app.interface.requests.post', return_value=mock_response)
+
+    interface.extraer_markdown()
+
+    assert mock_post.call_args.args[0] == "http://127.0.0.1:8000/extract"
+    assert interface.texto_extraido_global == "# Titulo\n\nCuerpo"
+    assert interface.texto_resultado.get("1.0", tk.END).strip() == "# Titulo\n\nCuerpo"
+
+
+def test_descargar_md_guarda_archivo_markdown(mocker):
+    interface.texto_extraido_global = "# Titulo"
+    ruta_guardado = "/ruta/falsa/descarga.md"
+
+    mock_asksaveas = mocker.patch(
+        'app.interface.filedialog.asksaveasfilename', return_value=ruta_guardado
+    )
+    mock_open = mocker.patch("builtins.open", mocker.mock_open())
+    mock_showinfo = mocker.patch('app.interface.messagebox.showinfo')
+
+    interface.descargar_md()
+
+    assert mock_asksaveas.call_args.kwargs["defaultextension"] == ".md"
+    mock_open.assert_called_once_with(ruta_guardado, "w", encoding="utf-8")
+    mock_open().write.assert_called_once_with("# Titulo")
+    mock_showinfo.assert_called_once_with("Éxito", "MD descargado correctamente.")
