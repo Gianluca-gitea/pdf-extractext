@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 from functools import lru_cache
 from time import perf_counter
@@ -22,11 +22,15 @@ from app.services.pdf_service import (
     extract_markdown_from_pdf_bytes,
     process_pdf_upload,
 )
-from app.settings import configure_logging, get_settings
+from app.settings import get_settings
 
 load_dotenv()
 
-configure_logging()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
 
 EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
 MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
@@ -247,9 +251,9 @@ async def _read_pdf_payload(request: Request) -> tuple[bytes, str]:
 
 
 @lru_cache(maxsize=1)
-def get_extraction_pool() -> ProcessPoolExecutor:
+def get_extraction_pool() -> ThreadPoolExecutor:
     logger.info("Starting extraction pool: workers=%d", settings.extract_workers)
-    return ProcessPoolExecutor(max_workers=settings.extract_workers, initializer=configure_logging)
+    return ThreadPoolExecutor(max_workers=settings.extract_workers)
 
 
 @app.post("/extract")

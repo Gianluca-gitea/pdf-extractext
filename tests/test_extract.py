@@ -106,9 +106,9 @@ def test_extract_forwards_ocr_setting(monkeypatch, pdf_bytes, thread_pool) -> No
     extractor.assert_called_once_with(pdf_bytes, ocr_enabled=True)
 
 
-def test_get_extraction_pool_creates_one_process_pool_from_settings(monkeypatch) -> None:
+def test_get_extraction_pool_creates_one_thread_pool_from_settings(monkeypatch) -> None:
     pool_class = MagicMock()
-    monkeypatch.setattr(main_module, "ProcessPoolExecutor", pool_class)
+    monkeypatch.setattr(main_module, "ThreadPoolExecutor", pool_class)
     monkeypatch.setattr(main_module, "settings", replace(main_module.settings, extract_workers=3))
     main_module.get_extraction_pool.cache_clear()
 
@@ -119,7 +119,7 @@ def test_get_extraction_pool_creates_one_process_pool_from_settings(monkeypatch)
         main_module.get_extraction_pool.cache_clear()
 
     assert first is second
-    pool_class.assert_called_once_with(max_workers=3, initializer=main_module.configure_logging)
+    pool_class.assert_called_once_with(max_workers=3)
 
 
 def test_extract_runs_extraction_in_the_extraction_pool(monkeypatch, pdf_bytes, thread_pool) -> None:
@@ -154,7 +154,7 @@ def test_extract_releases_pending_slot_after_success_and_failure(pdf_bytes, thre
     assert main_module._pending_extractions == 0
 
 
-def test_extract_works_with_the_real_process_pool(pdf_bytes) -> None:
+def test_extract_works_with_the_real_extraction_pool(pdf_bytes) -> None:
     response = client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
 
     assert response.status_code == 200

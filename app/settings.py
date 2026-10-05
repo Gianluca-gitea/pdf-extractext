@@ -20,14 +20,6 @@ class Settings:
     max_pending_extractions: int = DEFAULT_MAX_PENDING_EXTRACTIONS
 
 
-def configure_logging() -> None:
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    )
-
-
 def _positive_int_env(name: str, default: int) -> int:
     raw = os.getenv(name)
     if raw is None:
