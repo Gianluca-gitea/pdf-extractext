@@ -270,3 +270,16 @@ def test_descargar_md_guarda_archivo_markdown(mocker):
     mock_open.assert_called_once_with(ruta_guardado, "w", encoding="utf-8")
     mock_open().write.assert_called_once_with("# Titulo")
     mock_showinfo.assert_called_once_with("Éxito", "MD descargado correctamente.")
+
+
+def test_extraer_texto_envia_el_nombre_real_del_archivo(mocker):
+    interface.archivo_pdf = "/ruta/falsa/mi_documento.pdf"
+    mocker.patch("builtins.open", mocker.mock_open(read_data=b"contenido pdf fake"))
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"extracted_text": ""}
+    mock_post = mocker.patch('app.interface.requests.post', return_value=mock_response)
+
+    interface.extraer_texto()
+
+    assert mock_post.call_args.kwargs["files"]["file"][0] == "mi_documento.pdf"

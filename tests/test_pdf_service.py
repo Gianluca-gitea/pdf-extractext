@@ -221,3 +221,13 @@ def test_extract_markdown_runs_ocr_when_enabled(monkeypatch, pdf_with_image) -> 
     result = extract_markdown_from_pdf_bytes(pdf_with_image, ocr_enabled=True)
 
     assert result["content"] == "Texto normal\n\ntexto ocr"
+
+
+def test_process_pdf_upload_uses_shared_repository_by_default(monkeypatch) -> None:
+    shared_repository = MagicMock()
+    shared_repository.find_by_checksum.return_value = {"_id": "id", "txt_contenido": "texto"}
+    monkeypatch.setattr(pdf_service, "get_document_repository", lambda: shared_repository)
+
+    pdf_service.process_pdf_upload(file_name="a.pdf", file_bytes=b"%PDF-1.4", ocr_enabled=False)
+
+    shared_repository.find_by_checksum.assert_called_once()

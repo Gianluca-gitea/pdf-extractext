@@ -1,18 +1,12 @@
 from dataclasses import replace
 from unittest.mock import MagicMock
 
-import pytest
 from fastapi.testclient import TestClient
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
 
 client = TestClient(main_module.app)
-
-
-@pytest.fixture
-def pdf_bytes(build_pdf) -> bytes:
-    return build_pdf([("Hola extract", 11)])
 
 
 def test_extract_accepts_multipart_file(pdf_bytes) -> None:
@@ -79,7 +73,7 @@ def test_extract_rejects_invalid_pdf_content() -> None:
 def test_extract_does_not_touch_the_database(monkeypatch, pdf_bytes) -> None:
     repository = MagicMock()
     document_service = MagicMock()
-    monkeypatch.setattr(pdf_service_module, "DocumentRepository", repository)
+    monkeypatch.setattr(pdf_service_module, "get_document_repository", repository)
     monkeypatch.setattr(main_module, "DocumentService", document_service)
 
     response = client.post(

@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
+from functools import lru_cache
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient, ReturnDocument
@@ -111,3 +112,8 @@ class DocumentRepository:
             return_document=ReturnDocument.AFTER,
         )
         return result is not None
+
+
+@lru_cache(maxsize=1)
+def get_document_repository() -> DocumentRepository:
+    return DocumentRepository()

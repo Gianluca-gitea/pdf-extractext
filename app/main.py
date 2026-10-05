@@ -291,7 +291,8 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
         raise HTTPException(status_code=400, detail=INVALID_CONTENT_TYPE_ERROR_DETAIL)
 
     try:
-        result = process_pdf_upload(
+        result = await run_in_threadpool(
+            process_pdf_upload,
             file_name=filename,
             file_bytes=file_bytes,
             ocr_enabled=settings.ocr_enabled,

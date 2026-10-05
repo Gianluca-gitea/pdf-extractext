@@ -14,9 +14,6 @@ class Settings:
     app_env: str = "dev"
     max_pdf_size_bytes: int = DEFAULT_MAX_PDF_SIZE_BYTES
     ocr_enabled: bool = False
-    # MongoDB Configuration
-    mongodb_uri: str = ""
-    mongodb_db_name: str = "pdf-extractext"
 
 
 def get_settings() -> Settings:
@@ -51,8 +48,6 @@ def get_settings() -> Settings:
         app_env=os.getenv("APP_ENV", "dev"),
         max_pdf_size_bytes=max_pdf_size,
         ocr_enabled=os.getenv("APP_OCR_ENABLED", "false").lower() == "true",
-        mongodb_uri=os.getenv("MONGODB_URI", ""),
-        mongodb_db_name=os.getenv("MONGODB_DB_NAME", "pdf-extractext"),
     )
 
     logger.info(

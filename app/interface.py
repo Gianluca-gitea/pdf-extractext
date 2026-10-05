@@ -3,8 +3,11 @@ from tkinter import filedialog, messagebox, ttk, simpledialog
 import requests
 from requests.exceptions import ConnectionError
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+API_URL = "http://127.0.0.1:8000"
 
 archivo_pdf = None
 texto_extraido_global = ""
@@ -46,7 +49,7 @@ def _enviar_pdf(endpoint, campo_texto):
         with open(archivo_pdf, "rb") as pdf:
             files = {
                 "file": (
-                    "archivo.pdf",
+                    os.path.basename(archivo_pdf),
                     pdf,
                     "application/pdf"
                 )
@@ -54,7 +57,7 @@ def _enviar_pdf(endpoint, campo_texto):
 
             logger.debug("Sending POST request to %s", endpoint)
             response = requests.post(
-                f"http://127.0.0.1:8000{endpoint}",
+                f"{API_URL}{endpoint}",
                 files=files
             )
 
@@ -77,7 +80,7 @@ def _enviar_pdf(endpoint, campo_texto):
             messagebox.showerror("Error", response.text)
 
     except ConnectionError:
-        logger.error("Failed to connect to backend at http://127.0.0.1:8000")
+        logger.error("Failed to connect to backend at %s", API_URL)
         messagebox.showerror(
             "Error de Conexión",
             "No se pudo conectar con el servidor backend.\n\n"
@@ -147,7 +150,7 @@ def cargar_lista_historial(tree):
     for row in tree.get_children():
         tree.delete(row)
     try:
-        response = requests.get("http://127.0.0.1:8000/documents?limit=50")
+        response = requests.get(f"{API_URL}/documents?limit=50")
         if response.status_code == 200:
             docs = response.json().get("items", [])
             logger.info("History loaded successfully: %d items retrieved", len(docs))
@@ -182,7 +185,7 @@ def ver_texto_historial(tree, ventana_historial):
     logger.info("Fetching text for document id: %s", doc_id)
 
     try:
-        resp = requests.get(f"http://127.0.0.1:8000/documents/{doc_id}?include_text=true")
+        resp = requests.get(f"{API_URL}/documents/{doc_id}?include_text=true")
         if resp.status_code == 200:
             data = resp.json().get("document", {})
             texto = data.get("txt_contenido", "")
@@ -231,7 +234,7 @@ def renombrar_historial(tree):
         )
         try:
             resp = requests.patch(
-                f"http://127.0.0.1:8000/documents/{doc_id}",
+                f"{API_URL}/documents/{doc_id}",
                 json={"pdf_nombre": nuevo_nombre}
             )
             if resp.status_code == 200:
@@ -263,7 +266,7 @@ def eliminar_historial(tree):
     if messagebox.askyesno("Confirmar", msg):
         logger.info("Attempting to delete document id: %s", doc_id)
         try:
-            resp = requests.delete(f"http://127.0.0.1:8000/documents/{doc_id}")
+            resp = requests.delete(f"{API_URL}/documents/{doc_id}")
             if resp.status_code == 200:
                 logger.info("Document successfully deleted")
                 cargar_lista_historial(tree)

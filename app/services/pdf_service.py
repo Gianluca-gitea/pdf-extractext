@@ -9,7 +9,7 @@ from typing import Any
 
 import fitz
 
-from app.repositories.document_repository import DocumentRepository
+from app.repositories.document_repository import DocumentRepository, get_document_repository
 from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
 from pathlib import Path
@@ -188,7 +188,7 @@ def process_pdf_upload(
         len(file_bytes),
     )
 
-    active_repository = repository or DocumentRepository()
+    active_repository = repository or get_document_repository()
     existing = active_repository.find_by_checksum(checksum)
     if existing is not None:
         logger.info(

@@ -18,6 +18,11 @@ def build_pdf():
 
 
 @pytest.fixture
+def pdf_bytes(build_pdf) -> bytes:
+    return build_pdf([("Hola extract", 11)])
+
+
+@pytest.fixture
 def pdf_with_image() -> bytes:
     doc = fitz.open()
     page = doc.new_page(width=200, height=200)
