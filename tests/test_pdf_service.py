@@ -7,10 +7,16 @@ from app.services import pdf_service
 import pytest
 import fitz
 from app.services.pdf_service import (
+    extract_markdown_from_pdf_bytes,
     extract_text_from_pdf_bytes,
+    INVALID_PDF_CONTENT_ERROR,
     InvalidPDFError,
     _extract_text_from_image_bytes,
 )
+
+
+def _fail_ocr(image_bytes):
+    raise AssertionError("OCR no deberia ejecutarse")
 
 
 def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
@@ -25,7 +31,7 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
     monkeypatch.setattr(
         pdf_service,
         "extract_text_from_pdf_bytes",
-        lambda received_bytes: "texto extraido",
+        lambda received_bytes, ocr_enabled: "texto extraido",
     )
     monkeypatch.setattr(
         pdf_service,
@@ -54,6 +60,7 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
     result = pdf_service.process_pdf_upload(
         file_name=file_name,
         file_bytes=file_bytes,
+        ocr_enabled=False,
         repository=repository,
     )
 
@@ -84,6 +91,7 @@ def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
     result = pdf_service.process_pdf_upload(
         file_name=file_name,
         file_bytes=file_bytes,
+        ocr_enabled=False,
         repository=repository,
     )
 
@@ -95,7 +103,7 @@ def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
 
 def test_extract_text_from_pdf_bytes_raises_error_if_not_pdf():
     with pytest.raises(InvalidPDFError, match="El contenido no corresponde a un PDF valido."):
-        extract_text_from_pdf_bytes(b"esto no es un pdf, son bytes al azar")
+        extract_text_from_pdf_bytes(b"esto no es un pdf, son bytes al azar", ocr_enabled=False)
 
 
 def test_extract_text_from_pdf_bytes_extracts_real_text():
@@ -104,7 +112,7 @@ def test_extract_text_from_pdf_bytes_extracts_real_text():
     page.insert_text((10, 10), "Hola mundo real")
     pdf_bytes = doc.write()
 
-    result = extract_text_from_pdf_bytes(pdf_bytes)
+    result = extract_text_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
     assert "Hola mundo real" in result
 
 
@@ -120,7 +128,7 @@ def test_extract_text_from_pdf_bytes_handles_fitz_open_error(monkeypatch):
     monkeypatch.setattr("fitz.open", mock_open)
 
     with pytest.raises(InvalidPDFError, match="El contenido no corresponde a un PDF valido."):
-        extract_text_from_pdf_bytes(b"%PDF-1.4 pero corrupto")
+        extract_text_from_pdf_bytes(b"%PDF-1.4 pero corrupto", ocr_enabled=False)
 
 
 def test_extract_text_from_image_bytes_uses_ocr_successfully(mocker):
@@ -132,3 +140,94 @@ def test_extract_text_from_image_bytes_uses_ocr_successfully(mocker):
     mock_image_open.assert_called_once()
     mock_pytesseract.assert_called_once()
     assert result == "texto detectado en imagen"
+
+
+def test_process_pdf_upload_forwards_ocr_setting(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = None
+    extract_text_mock = MagicMock(return_value="texto")
+    monkeypatch.setattr(pdf_service, "extract_text_from_pdf_bytes", extract_text_mock)
+
+    pdf_service.process_pdf_upload(
+        file_name="documento.pdf",
+        file_bytes=b"%PDF-1.4 test",
+        ocr_enabled=True,
+        repository=repository,
+    )
+
+    extract_text_mock.assert_called_once_with(b"%PDF-1.4 test", ocr_enabled=True)
+
+
+def test_extract_text_from_pdf_bytes_skips_ocr_when_disabled(monkeypatch, pdf_with_image):
+    monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", _fail_ocr)
+
+    assert extract_text_from_pdf_bytes(pdf_with_image, ocr_enabled=False) == "Texto normal"
+
+
+def test_extract_text_from_pdf_bytes_runs_ocr_when_enabled(monkeypatch, pdf_with_image):
+    monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", lambda _: "texto ocr")
+
+    assert extract_text_from_pdf_bytes(pdf_with_image, ocr_enabled=True) == "Texto normal\ntexto ocr"
+
+
+def test_extract_markdown_rejects_non_pdf_bytes() -> None:
+    with pytest.raises(InvalidPDFError, match=INVALID_PDF_CONTENT_ERROR):
+        extract_markdown_from_pdf_bytes(b"esto no es un pdf", ocr_enabled=False)
+
+
+def test_extract_markdown_counts_pages(build_pdf) -> None:
+    pdf_bytes = build_pdf([("uno", 11)], [("dos", 11)], [("tres", 11)])
+
+    result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+
+    assert result["page_count"] == 3
+
+
+def test_extract_markdown_returns_empty_content_for_blank_page(build_pdf) -> None:
+    result = extract_markdown_from_pdf_bytes(build_pdf([]), ocr_enabled=False)
+
+    assert result == {"content": "", "page_count": 1}
+
+
+def test_extract_markdown_separates_blocks_as_paragraphs_across_pages(build_pdf) -> None:
+    pdf_bytes = build_pdf([("Primer parrafo", 11), ("Segundo parrafo", 11)], [("Pagina dos", 11)])
+
+    result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+
+    assert result["content"] == "Primer parrafo\n\nSegundo parrafo\n\nPagina dos"
+
+
+def test_extract_markdown_marks_large_text_as_headings(build_pdf) -> None:
+    pdf_bytes = build_pdf(
+        [("Titulo", 24), ("Subtitulo", 14), ("Cuerpo uno", 11), ("Cuerpo dos", 11)]
+    )
+
+    result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+
+    assert result["content"] == "# Titulo\n\n## Subtitulo\n\nCuerpo uno\n\nCuerpo dos"
+
+
+def test_extract_markdown_skips_ocr_when_disabled(monkeypatch, pdf_with_image) -> None:
+    monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", _fail_ocr)
+
+    result = extract_markdown_from_pdf_bytes(pdf_with_image, ocr_enabled=False)
+
+    assert result["content"] == "Texto normal"
+
+
+def test_extract_markdown_runs_ocr_when_enabled(monkeypatch, pdf_with_image) -> None:
+    monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", lambda _: "texto ocr")
+
+    result = extract_markdown_from_pdf_bytes(pdf_with_image, ocr_enabled=True)
+
+    assert result["content"] == "Texto normal\n\ntexto ocr"
+
+
+def test_process_pdf_upload_uses_shared_repository_by_default(monkeypatch) -> None:
+    shared_repository = MagicMock()
+    shared_repository.find_by_checksum.return_value = {"_id": "id", "txt_contenido": "texto"}
+    monkeypatch.setattr(pdf_service, "get_document_repository", lambda: shared_repository)
+
+    pdf_service.process_pdf_upload(file_name="a.pdf", file_bytes=b"%PDF-1.4", ocr_enabled=False)
+
+    shared_repository.find_by_checksum.assert_called_once()

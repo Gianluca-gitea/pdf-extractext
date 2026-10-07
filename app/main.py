@@ -1,18 +1,28 @@
 from __future__ import annotations
 
+import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
+from functools import lru_cache
+from time import perf_counter
 from typing import Literal
 
 from bson.objectid import ObjectId
 from dotenv import load_dotenv
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from starlette.datastructures import UploadFile as FormFile
 
-from app.settings import get_settings
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
-from app.services.pdf_service import InvalidPDFError, process_pdf_upload
+from app.services.pdf_service import (
+    InvalidPDFError,
+    extract_markdown_from_pdf_bytes,
+    process_pdf_upload,
+)
+from app.settings import get_settings
 
 load_dotenv()
 
@@ -21,20 +31,21 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
     datefmt="%Y-%m-%d %H:%M:%S",
 )
-logging.getLogger().setLevel(logging.INFO)
 
 EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
 MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
 INVALID_CONTENT_TYPE_ERROR_DETAIL = "El archivo debe enviarse como application/pdf."
 INVALID_DOCUMENT_ID_ERROR_DETAIL = "ID de documento inválido."
 NO_UPDATE_FIELDS_ERROR_DETAIL = "No hay campos para actualizar."
+MISSING_FILE_FIELD_ERROR_DETAIL = "Falta el campo 'file' con el PDF."
+SERVICE_BUSY_ERROR_DETAIL = "Servicio saturado, reintentá en unos segundos."
 MAX_LIST_LIMIT = 100
 
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 app = FastAPI(title=settings.app_name, version=settings.app_version)
+_pending_extractions = 0
 
 
 class DocumentUpdate(BaseModel):
@@ -209,6 +220,84 @@ def download_document_text(document_id: str) -> Response:
     )
 
 
+def _ensure_valid_size(file_bytes: bytes, filename: str) -> None:
+    if not file_bytes:
+        logger.warning("Rejected PDF: archivo vacío. filename=%s", filename)
+        raise HTTPException(status_code=400, detail=EMPTY_FILE_ERROR_DETAIL)
+
+    if len(file_bytes) > settings.max_pdf_size_bytes:
+        logger.warning(
+            "Rejected PDF: archivo demasiado grande. filename=%s size_bytes=%d max_size=%d",
+            filename,
+            len(file_bytes),
+            settings.max_pdf_size_bytes,
+        )
+        raise HTTPException(
+            status_code=413,
+            detail=MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=settings.max_pdf_size_bytes),
+        )
+
+
+async def _read_pdf_payload(request: Request) -> tuple[bytes, str]:
+    if not request.headers.get("content-type", "").startswith("multipart/form-data"):
+        return await request.body(), "raw"
+
+    async with request.form() as form:
+        upload = form.get("file")
+        if not isinstance(upload, FormFile):
+            logger.warning("Rejected extract request: multipart sin campo 'file'")
+            raise HTTPException(status_code=400, detail=MISSING_FILE_FIELD_ERROR_DETAIL)
+        return await upload.read(), upload.filename or "multipart"
+
+
+@lru_cache(maxsize=1)
+def get_extraction_pool() -> ThreadPoolExecutor:
+    logger.info("Starting extraction pool: workers=%d", settings.extract_workers)
+    return ThreadPoolExecutor(max_workers=settings.extract_workers)
+
+
+@app.post("/extract")
+async def extract(request: Request) -> dict[str, str | int]:
+    global _pending_extractions
+    if _pending_extractions >= settings.max_pending_extractions:
+        logger.warning("Rejected extract request: servicio saturado. pending=%d", _pending_extractions)
+        raise HTTPException(
+            status_code=503, detail=SERVICE_BUSY_ERROR_DETAIL, headers={"Retry-After": "1"}
+        )
+
+    _pending_extractions += 1
+    try:
+        started_at = perf_counter()
+        file_bytes, source = await _read_pdf_payload(request)
+        logger.info(
+            "Extract request received: source=%s size_bytes=%d pending=%d",
+            source,
+            len(file_bytes),
+            _pending_extractions,
+        )
+
+        _ensure_valid_size(file_bytes, source)
+
+        try:
+            result = await asyncio.wrap_future(
+                get_extraction_pool().submit(
+                    extract_markdown_from_pdf_bytes, file_bytes, ocr_enabled=settings.ocr_enabled
+                )
+            )
+        except InvalidPDFError as exc:
+            logger.warning("Rejected extract request: PDF inválido. source=%s", source)
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+        logger.info(
+            "Extract request completed: source=%s duration_ms=%d",
+            source,
+            int((perf_counter() - started_at) * 1000),
+        )
+        return result
+    finally:
+        _pending_extractions -= 1
+
+
 @app.post("/documents/upload")
 async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
     file_bytes = await file.read()
@@ -220,21 +309,7 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
         len(file_bytes),
     )
 
-    if not file_bytes:
-        logger.warning("Upload failed: archivo vacío. filename=%s", filename)
-        raise HTTPException(status_code=400, detail=EMPTY_FILE_ERROR_DETAIL)
-
-    if len(file_bytes) > settings.max_pdf_size_bytes:
-        logger.warning(
-            "Upload failed: archivo demasiado grande. filename=%s size_bytes=%d max_size=%d",
-            filename,
-            len(file_bytes),
-            settings.max_pdf_size_bytes,
-        )
-        raise HTTPException(
-            status_code=413,
-            detail=MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=settings.max_pdf_size_bytes),
-        )
+    _ensure_valid_size(file_bytes, filename)
 
     if file.content_type != "application/pdf":
         logger.warning(
@@ -245,9 +320,11 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
         raise HTTPException(status_code=400, detail=INVALID_CONTENT_TYPE_ERROR_DETAIL)
 
     try:
-        result = process_pdf_upload(
+        result = await run_in_threadpool(
+            process_pdf_upload,
             file_name=filename,
             file_bytes=file_bytes,
+            ocr_enabled=settings.ocr_enabled,
         )
     except InvalidPDFError as exc:
         logger.warning("Invalid PDF content for filename=%s: %s", filename, exc)

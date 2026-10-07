@@ -20,10 +20,11 @@ Nuestro objetivo es desarrollar una herramienta simple y funcional que permita p
 
 ## Funcionalidades
 - Permite extraer texto desde archivos PDF.
+- Convierte PDFs a Markdown (`POST /extract`), con títulos detectados por tamaño de fuente.
 - Facilita el manejo de información contenida en documentos.
 - Persistencia en base de datos para no reprocesar archivos idénticos (Deduplicación por Checksum).
-- Interfaz gráfica (GUI) para selección de archivos, visualización del historial y descarga directa en formato `.txt`.
-- Procesamiento OCR para extraer texto de imágenes incrustadas.
+- Interfaz gráfica (GUI) para selección de archivos, visualización del historial y descarga directa en formato `.txt` o `.md`.
+- Procesamiento OCR opcional para extraer texto de imágenes incrustadas (desactivado por defecto, se activa con `APP_OCR_ENABLED=true`).
 - Borrado lógico (Soft delete) y edición de estado de los documentos.
 
 ---
@@ -62,7 +63,9 @@ El proyecto funciona con una arquitectura cliente-servidor:
 - `app/services/`: Lógica de extracción de texto, OCR, gestión de estado y creación de documentos.
 - `app/repositories/`: Lógica de conexión a la base de datos MongoDB.
 - `app/settings.py`: Configuración de la aplicación.
+- `nginx/`: Configuración del balanceador que reparte las peticiones entre las réplicas de la API.
 - `tests/`: Pruebas automatizadas.
+- `tests/stress/`: Pruebas de carga con k6 (`spike_tests.js`) y Vegeta (`vegeta_tests.sh`) sobre los PDFs de `tests/stress/pdfs/`.
 - `start.bat` / `start.sh`: Scripts para levantar el proyecto automáticamente.
 
 ---
@@ -133,6 +136,8 @@ start.bat
 docker compose up --build
 ```
 
+Esto levanta 5 réplicas de la API (cada una limitada a 1 CPU y 1 GB de RAM) detrás de un balanceador **nginx**, que atiende en el puerto `8000`.
+
 **Uso**
 1. Instalar `uv` (si no está instalado):
 ```bash
@@ -161,6 +166,16 @@ Si deseas usar el backend de forma independiente sin la interfaz, estos son los 
 
 * `GET /health`
   * Retorna `{ "status": "ok" }`.
+
+
+* `POST /extract`
+  * Recibe el PDF como `multipart/form-data` (campo `file`) o como binario directo en el body (`Content-Type: application/pdf`).
+  * No guarda nada en la base de datos.
+  * Respuestas posibles:
+  * `200`: `{ "content": "<texto en Markdown>", "page_count": <cantidad de páginas> }`.
+  * `400`: archivo vacío, contenido inválido o falta el campo `file`.
+  * `413`: archivo demasiado grande.
+  * `503`: servicio saturado; reintentar luego de lo indicado en el header `Retry-After`.
 
 
 * `POST /documents/upload`
@@ -207,7 +222,10 @@ Si deseas usar el backend de forma independiente sin la interfaz, estos son los 
 
 Las siguientes variables de entorno (o archivo `.env`) configuran el proyecto:
 
-* `APP_MAX_PDF_SIZE_BYTES`: límite máximo de tamaño de PDF en bytes. Por defecto es `5242880` (5 MB).
+* `APP_MAX_PDF_SIZE_BYTES`: límite máximo de tamaño de PDF en bytes. Por defecto es `10485760` (10 MB).
+* `APP_OCR_ENABLED`: activa el OCR de imágenes con `true`. Por defecto es `false`.
+* `APP_EXTRACT_WORKERS`: cantidad de extracciones simultáneas por réplica. Por defecto es `1`.
+* `APP_MAX_PENDING_EXTRACTIONS`: máximo de extracciones en curso o en espera por réplica; al superarlo, `/extract` responde `503`. Por defecto es `100`.
 * `MONGODB_URI`: URI de conexión a la base de datos (por defecto `mongodb://localhost:27017`).
 * `MONGODB_DB_NAME`: Nombre de la base de datos (por defecto `pdf-extractext`).
 

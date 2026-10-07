@@ -2,22 +2,55 @@ services:
   api:
     image: pdf-extractext-api:0.1.0
     build: .
-    ports:
-      - "8000:8000"
+    deploy:
+      replicas: 5
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1g
     environment:
       - APP_NAME=PDF Extractext API
       - APP_VERSION=0.1.0
-      - APP_MAX_PDF_SIZE_BYTES=5242880
+      - APP_MAX_PDF_SIZE_BYTES=10485760
+      - APP_OCR_ENABLED=false
+      - APP_EXTRACT_WORKERS=1
+      - APP_MAX_PENDING_EXTRACTIONS=100
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB_NAME=pdf-extractext
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       mongodb:
         condition: service_healthy
 
+  nginx:
+    image: nginx:1.28-alpine
+    ports:
+      - "8000:80"
+    environment:
+      - NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
+    volumes:
+      - ./nginx/templates:/etc/nginx/templates:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 256m
+    depends_on:
+      api:
+        condition: service_healthy
+
   mongodb:
     image: mongo:8.0.4
-    ports:
-      - "27017:27017"
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512m
     volumes:
       - mongodb_data:/data/db
     restart: unless-stopped

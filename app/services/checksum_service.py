@@ -2,7 +2,6 @@ import hashlib
 import logging
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 def calc_checksum(file_bytes: bytes) -> str:

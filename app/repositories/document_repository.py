@@ -4,12 +4,12 @@ from __future__ import annotations
 import logging
 import os
 from datetime import datetime, timezone
+from functools import lru_cache
 
-from pymongo import MongoClient, ReturnDocument
 from bson.objectid import ObjectId
+from pymongo import MongoClient, ReturnDocument
 
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
 
 
 class DocumentRepository:
@@ -112,3 +112,8 @@ class DocumentRepository:
             return_document=ReturnDocument.AFTER,
         )
         return result is not None
+
+
+@lru_cache(maxsize=1)
+def get_document_repository() -> DocumentRepository:
+    return DocumentRepository()

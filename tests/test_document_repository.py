@@ -5,7 +5,8 @@ import pytest
 from bson.objectid import ObjectId
 from pymongo import ReturnDocument
 
-from app.repositories.document_repository import DocumentRepository
+from app.repositories import document_repository as document_repository_module
+from app.repositories.document_repository import DocumentRepository, get_document_repository
 
 
 class TestDocumentRepository:
@@ -246,3 +247,18 @@ class TestDocumentRepository:
         assert "deleted_at" in args[1]["$set"]
         assert kwargs["return_document"] == ReturnDocument.AFTER
         assert result is True
+
+
+def test_get_document_repository_reuses_a_single_mongo_client(monkeypatch) -> None:
+    mongo_client_class = MagicMock()
+    monkeypatch.setattr(document_repository_module, "MongoClient", mongo_client_class)
+    get_document_repository.cache_clear()
+
+    try:
+        first = get_document_repository()
+        second = get_document_repository()
+    finally:
+        get_document_repository.cache_clear()
+
+    assert first is second
+    mongo_client_class.assert_called_once()

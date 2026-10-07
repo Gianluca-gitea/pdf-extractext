@@ -1,9 +1,10 @@
+import asyncio
 from dataclasses import replace
 from unittest.mock import MagicMock
 
 from bson.objectid import ObjectId
+import pytest
 from fastapi.testclient import TestClient
-import fitz
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
@@ -12,14 +13,7 @@ from app.services import pdf_service as pdf_service_module
 client = TestClient(main_module.app)
 
 
-def _build_valid_pdf_bytes() -> bytes:
-    doc = fitz.open()
-    doc.new_page(width=200, height=200)
-    return doc.write()
-
-
-def test_upload_pdf_accepts_real_file(monkeypatch) -> None:
-    pdf_bytes = _build_valid_pdf_bytes()
+def test_upload_pdf_accepts_real_file(monkeypatch, pdf_bytes) -> None:
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
     process_mock = MagicMock(
         return_value={
@@ -42,8 +36,7 @@ def test_upload_pdf_accepts_real_file(monkeypatch) -> None:
     assert payload["extracted_text"] == ""
 
 
-def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch) -> None:
-    pdf_bytes = _build_valid_pdf_bytes()
+def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch, pdf_bytes) -> None:
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
     process_mock = MagicMock(
         return_value={
@@ -61,6 +54,7 @@ def test_upload_pdf_delegates_processing_to_pdf_service(monkeypatch) -> None:
     process_mock.assert_called_once_with(
         file_name="documento.pdf",
         file_bytes=pdf_bytes,
+        ocr_enabled=main_module.settings.ocr_enabled,
     )
     assert response.json()["extracted_text"] == "texto desde service"
 
@@ -77,7 +71,7 @@ def test_upload_pdf_rejects_non_pdf_file() -> None:
 def test_upload_pdf_rejects_invalid_pdf_content(monkeypatch) -> None:
     process_mock = MagicMock()
     process_mock.find_by_checksum.return_value = None
-    monkeypatch.setattr(pdf_service_module, "DocumentRepository", lambda: process_mock)
+    monkeypatch.setattr(pdf_service_module, "get_document_repository", lambda: process_mock)
 
     files = {"file": ("falso.pdf", b"esto no es un pdf", "application/pdf")}
 
@@ -87,11 +81,11 @@ def test_upload_pdf_rejects_invalid_pdf_content(monkeypatch) -> None:
     assert response.json() == {"detail": pdf_service_module.INVALID_PDF_CONTENT_ERROR}
 
 
-def test_upload_pdf_rejects_file_over_max_size(monkeypatch) -> None:
+def test_upload_pdf_rejects_file_over_max_size(monkeypatch, pdf_bytes) -> None:
     limited_settings = replace(main_module.settings, max_pdf_size_bytes=10)
     monkeypatch.setattr(main_module, "settings", limited_settings)
 
-    files = {"file": ("documento.pdf", _build_valid_pdf_bytes(), "application/pdf")}
+    files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
@@ -171,3 +165,17 @@ def test_download_document_rejects_invalid_object_id():
 
     assert response.status_code == 400
     assert response.json() == {"detail": "ID de documento inválido."}
+
+
+def test_upload_pdf_processes_outside_the_event_loop(monkeypatch, pdf_bytes) -> None:
+    def process_off_loop(**kwargs):
+        with pytest.raises(RuntimeError):
+            asyncio.get_running_loop()
+        return {"document_id": "id", "document": {"txt_contenido": ""}}
+
+    monkeypatch.setattr(main_module, "process_pdf_upload", process_off_loop)
+    files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
+
+    response = client.post("/documents/upload", files=files)
+
+    assert response.status_code == 200

@@ -24,7 +24,7 @@ echo "[INFO] Esperando 2 segundos para que el servidor inicie..."
 sleep 2
 
 echo "[INFO] Iniciando el frontend..."
-python app/interface.py
+uv run python app/interface.py
 
 echo "[INFO] Interfaz cerrada. Deteniendo el backend..."
 kill $BACKEND_PID

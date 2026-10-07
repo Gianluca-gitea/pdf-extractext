@@ -3,6 +3,7 @@ from unittest.mock import MagicMock
 import pytest
 from bson.objectid import ObjectId
 
+from app.services import document_service as document_service_module
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 
 
@@ -80,3 +81,10 @@ def test_update_document_rejects_invalid_estado() -> None:
 
     with pytest.raises(InvalidStatusTransitionError):
         service.update_document(ObjectId(), {"estado": "desconocido"})
+
+
+def test_document_service_uses_shared_repository_by_default(monkeypatch) -> None:
+    shared_repository = MagicMock()
+    monkeypatch.setattr(document_service_module, "get_document_repository", lambda: shared_repository)
+
+    assert DocumentService().repository is shared_repository
