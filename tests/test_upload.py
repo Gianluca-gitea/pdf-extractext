@@ -1,14 +1,14 @@
 import asyncio
 from dataclasses import replace
+from tempfile import SpooledTemporaryFile
 from unittest.mock import MagicMock
 
-from bson.objectid import ObjectId
 import pytest
+from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 
 from app import main as main_module
 from app.services import pdf_service as pdf_service_module
-
 
 client = TestClient(main_module.app)
 
@@ -179,3 +179,18 @@ def test_upload_pdf_processes_outside_the_event_loop(monkeypatch, pdf_bytes) -> 
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 200
+    
+def test_upload_pdf_keeps_large_file_in_memory(monkeypatch) -> None:
+    rollovers = []
+    monkeypatch.setattr(SpooledTemporaryFile, "rollover", lambda self: rollovers.append(self))
+    monkeypatch.setattr(
+        main_module,
+        "process_pdf_upload",
+        MagicMock(return_value={"document_id": "id", "document": {"txt_contenido": ""}}),
+    )
+    large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)  # 2 MB PDF content
+    
+    response = client.post("/documents/upload", files={"file": ("grande.pdf", large_pdf, "application/pdf")})
+
+    assert response.status_code == 200
+    assert rollovers == []

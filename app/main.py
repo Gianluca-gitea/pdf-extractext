@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
@@ -16,6 +17,7 @@ from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile as FormFile
+from starlette.formparsers import MultiPartParser
 
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.pdf_service import (
@@ -46,6 +48,7 @@ MAX_LIST_LIMIT = 100
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
+MultiPartParser.spool_max_size = sys.maxsize
 app = FastAPI(title=settings.app_name, version=settings.app_version)
 _pending_extractions = 0
 

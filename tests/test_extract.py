@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from tempfile import SpooledTemporaryFile
 from unittest.mock import MagicMock
 
 import pytest
@@ -159,3 +160,19 @@ def test_extract_works_with_the_real_extraction_pool(pdf_bytes) -> None:
 
     assert response.status_code == 200
     assert response.json() == {"content": "Hola extract", "page_count": 1}
+    
+def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
+    rollovers = []
+    monkeypatch.setattr(SpooledTemporaryFile, "rollover", lambda self: rollovers.append(self))
+    monkeypatch.setattr(
+        main_module,
+        "extract_markdown_from_pdf_bytes",
+        lambda file_bytes, ocr_enabled: {"content": "", "page_count": 1},
+    )
+    large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)
+
+    response = client.post("/extract", files={"file": ("grande.pdf", large_pdf, "application/pdf")})
+
+    assert response.status_code == 200
+    assert rollovers == []
+
