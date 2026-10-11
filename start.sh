@@ -17,14 +17,15 @@ echo "[INFO] Asegurate de que MongoDB esté corriendo en el puerto 27017..."
 uv sync --frozen --no-dev
 
 echo "[INFO] Iniciando el backend..."
-uv run uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload &
+PORT="${PORT:-8000}"
+uv run uvicorn app.main:app --host 127.0.0.1 --port "$PORT" &
 BACKEND_PID=$!
 
 echo "[INFO] Esperando 2 segundos para que el servidor inicie..."
 sleep 2
 
 echo "[INFO] Iniciando el frontend..."
-uv run python app/interface.py
+API_URL="http://127.0.0.1:$PORT" uv run python app/interface.py
 
 echo "[INFO] Interfaz cerrada. Deteniendo el backend..."
 kill $BACKEND_PID
