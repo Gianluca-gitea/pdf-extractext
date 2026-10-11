@@ -19,6 +19,8 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile as FormFile
 from starlette.formparsers import MultiPartParser
 
+from app import __version__
+from app.body_limit import BodySizeLimitMiddleware
 from app.logging_config import configure_logging
 from app.repositories.document_repository import close_document_repository
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
@@ -39,6 +41,7 @@ NO_UPDATE_FIELDS_ERROR_DETAIL = "No hay campos para actualizar."
 MISSING_FILE_FIELD_ERROR_DETAIL = "Falta el campo 'file' con el PDF."
 SERVICE_BUSY_ERROR_DETAIL = "Servicio saturado, reintentá en unos segundos."
 MAX_LIST_LIMIT = 100
+MULTIPART_OVERHEAD_BYTES = 1_048_576
 
 
 settings = get_settings()
@@ -55,7 +58,11 @@ async def lifespan(_app: FastAPI):
     close_document_repository()
 
 
-app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version=__version__, lifespan=lifespan)
+app.add_middleware(
+    BodySizeLimitMiddleware,
+    max_body_bytes=settings.max_pdf_size_bytes + MULTIPART_OVERHEAD_BYTES,
+)
 _pending_extractions = 0
 
 

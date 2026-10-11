@@ -13,8 +13,6 @@ DEFAULT_LOG_LEVEL = "INFO"
 @dataclass(frozen=True)
 class Settings:
     app_name: str = "PDF Extractext API"
-    app_version: str = "0.1.0"
-    app_env: str = "dev"
     max_pdf_size_bytes: int = DEFAULT_MAX_PDF_SIZE_BYTES
     ocr_enabled: bool = False
     extract_workers: int = DEFAULT_EXTRACT_WORKERS
@@ -56,8 +54,6 @@ def get_settings() -> Settings:
 
     return Settings(
         app_name=os.getenv("APP_NAME", "PDF Extractext API"),
-        app_version=os.getenv("APP_VERSION", "0.1.0"),
-        app_env=os.getenv("APP_ENV", "dev"),
         max_pdf_size_bytes=_positive_int_env("APP_MAX_PDF_SIZE_BYTES", DEFAULT_MAX_PDF_SIZE_BYTES),
         ocr_enabled=os.getenv("APP_OCR_ENABLED", "false").lower() == "true",
         extract_workers=_positive_int_env("APP_EXTRACT_WORKERS", DEFAULT_EXTRACT_WORKERS),

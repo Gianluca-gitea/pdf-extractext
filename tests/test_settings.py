@@ -8,15 +8,11 @@ from app.settings import (
 
 def test_get_settings_reads_environment_variables(monkeypatch) -> None:
     monkeypatch.setenv("APP_NAME", "PDF Extractext Test")
-    monkeypatch.setenv("APP_VERSION", "9.9.9")
-    monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("APP_MAX_PDF_SIZE_BYTES", "1234")
 
     settings = get_settings()
 
     assert settings.app_name == "PDF Extractext Test"
-    assert settings.app_version == "9.9.9"
-    assert settings.app_env == "test"
     assert settings.max_pdf_size_bytes == 1234
 
 
@@ -131,3 +127,11 @@ def test_get_settings_uses_default_for_invalid_log_level(monkeypatch) -> None:
     monkeypatch.setenv("APP_LOG_LEVEL", "verboso")
 
     assert get_settings().log_level == "INFO"
+
+
+def test_settings_has_no_named_environment() -> None:
+    assert not hasattr(get_settings(), "app_env")
+
+
+def test_settings_has_no_app_version() -> None:
+    assert not hasattr(get_settings(), "app_version")
