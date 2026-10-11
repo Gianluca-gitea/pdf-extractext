@@ -246,3 +246,15 @@ def test_process_pdf_upload_returns_winner_of_concurrent_duplicate_upload(monkey
     )
 
     assert result == {"document_id": "id-ganador", "document": winner}
+
+
+def test_process_pdf_upload_reraises_duplicate_when_winner_is_gone(monkeypatch) -> None:
+    repository = MagicMock()
+    repository.find_by_checksum.return_value = None
+    repository.save_document.side_effect = DuplicateKeyError("checksum duplicado")
+    monkeypatch.setattr(pdf_service, "extract_text_from_pdf_bytes", lambda *_, **__: "texto")
+
+    with pytest.raises(DuplicateKeyError):
+        pdf_service.process_pdf_upload(
+            file_name="a.pdf", file_bytes=b"%PDF-1.4", ocr_enabled=False, repository=repository
+        )

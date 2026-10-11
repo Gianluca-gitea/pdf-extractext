@@ -59,7 +59,8 @@ def _extract_text_from_image_bytes(image_bytes: bytes | None) -> str:
             return ""
 
         image = Image.open(io.BytesIO(image_bytes))
-        return pytesseract.image_to_string(image).strip()
+        text: str = pytesseract.image_to_string(image)
+        return text.strip()
     except Exception as exc:
         logger.warning(
             "OCR failed for image block: %s",
@@ -131,7 +132,7 @@ def _span_sizes(block: dict) -> list[tuple[float, int]]:
 
 
 def _body_font_size(blocks: list[dict]) -> float:
-    chars_by_size = Counter()
+    chars_by_size: Counter[float] = Counter()
     for block in blocks:
         for size, chars in _span_sizes(block):
             chars_by_size[size] += chars
@@ -228,8 +229,11 @@ def process_pdf_upload(
     try:
         inserted_id = active_repository.save_document(document)
     except DuplicateKeyError:
+        winner = active_repository.find_by_checksum(checksum)
+        if winner is None:
+            raise
         logger.info("Concurrent upload already saved checksum=%s", checksum)
-        return _as_result(active_repository.find_by_checksum(checksum))
+        return _as_result(winner)
 
     logger.info(
         "Saved new document: filename=%s checksum=%s inserted_id=%s duration_ms=%d",
