@@ -6,7 +6,12 @@ from bson.objectid import ObjectId
 from pymongo import ReturnDocument
 
 from app.repositories import document_repository as document_repository_module
-from app.repositories.document_repository import DocumentRepository, get_document_repository
+from app.repositories.document_repository import (
+    DocumentRepository,
+    close_document_repository,
+    get_document_repository,
+)
+from app.settings import Settings
 
 
 class TestDocumentRepository:
@@ -248,6 +253,47 @@ class TestDocumentRepository:
         assert kwargs["return_document"] == ReturnDocument.AFTER
         assert result is True
 
+    def test_ensure_indexes_creates_unique_checksum_index_for_active_documents(
+        self,
+        repository: DocumentRepository,
+        mock_collection: MagicMock,
+    ) -> None:
+        repository.ensure_indexes()
+
+        mock_collection.create_index.assert_any_call(
+            "checksum_archivo",
+            unique=True,
+            partialFilterExpression={"deleted_at": {"$type": "null"}},
+        )
+
+    def test_ensure_indexes_creates_index_for_listing_order(
+        self,
+        repository: DocumentRepository,
+        mock_collection: MagicMock,
+    ) -> None:
+        repository.ensure_indexes()
+
+        mock_collection.create_index.assert_any_call([("created_at", -1), ("_id", -1)])
+
+
+def test_repository_uses_database_and_collection_from_settings() -> None:
+    mongo_client = MagicMock()
+    settings = Settings(mongodb_db_name="mi-db", mongodb_collection_name="mis-docs")
+
+    repository = DocumentRepository(mongo_client=mongo_client, settings=settings)
+
+    mongo_client.__getitem__.assert_called_once_with("mi-db")
+    repository.db.__getitem__.assert_called_once_with("mis-docs")
+
+
+def test_repository_creates_mongo_client_with_uri_from_settings(monkeypatch) -> None:
+    mongo_client_class = MagicMock()
+    monkeypatch.setattr(document_repository_module, "MongoClient", mongo_client_class)
+
+    DocumentRepository(settings=Settings(mongodb_uri="mongodb://db:27017"))
+
+    mongo_client_class.assert_called_once_with("mongodb://db:27017")
+
 
 def test_get_document_repository_reuses_a_single_mongo_client(monkeypatch) -> None:
     mongo_client_class = MagicMock()
@@ -262,3 +308,25 @@ def test_get_document_repository_reuses_a_single_mongo_client(monkeypatch) -> No
 
     assert first is second
     mongo_client_class.assert_called_once()
+
+
+def test_close_document_repository_closes_client_and_resets_cache(monkeypatch) -> None:
+    mongo_client_class = MagicMock()
+    monkeypatch.setattr(document_repository_module, "MongoClient", mongo_client_class)
+    get_document_repository.cache_clear()
+    get_document_repository()
+
+    close_document_repository()
+
+    mongo_client_class.return_value.close.assert_called_once_with()
+    assert get_document_repository.cache_info().currsize == 0
+
+
+def test_close_document_repository_does_not_connect_when_unused(monkeypatch) -> None:
+    mongo_client_class = MagicMock()
+    monkeypatch.setattr(document_repository_module, "MongoClient", mongo_client_class)
+    get_document_repository.cache_clear()
+
+    close_document_repository()
+
+    mongo_client_class.assert_not_called()

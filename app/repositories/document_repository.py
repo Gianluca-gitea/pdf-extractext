@@ -1,37 +1,41 @@
-
 from __future__ import annotations
 
 import logging
-import os
 from datetime import datetime, timezone
 from functools import lru_cache
 
 from bson.objectid import ObjectId
 from pymongo import MongoClient, ReturnDocument
 
+from app.settings import Settings, get_settings
+
 logger = logging.getLogger(__name__)
 
 
 class DocumentRepository:
-    def __init__(self, mongo_client: MongoClient | None = None):
+    def __init__(self, mongo_client: MongoClient | None = None, settings: Settings | None = None):
+        settings = settings or get_settings()
         if mongo_client is None:
-            mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-            mongo_client = MongoClient(mongo_uri)
+            mongo_client = MongoClient(settings.mongodb_uri)
 
         self.client = mongo_client
-        database_name = os.getenv("MONGODB_DB_NAME", "pdf-extractext")
-        collection_name = os.getenv("MONGO_COLLECTION_NAME", "documents")
+        self.db = mongo_client[settings.mongodb_db_name]
+        self.collection = self.db[settings.mongodb_collection_name]
 
-        self.db = mongo_client[database_name]
-        self.collection = self.db[collection_name]
-
-        actual_uri = mongo_client.address if hasattr(mongo_client, "address") else mongo_uri
         logger.info(
-            "DocumentRepository initialized: uri=%s database=%s collection=%s",
-            actual_uri,
-            database_name,
-            collection_name,
+            "DocumentRepository initialized: database=%s collection=%s",
+            settings.mongodb_db_name,
+            settings.mongodb_collection_name,
         )
+
+    def ensure_indexes(self) -> None:
+        self.collection.create_index(
+            "checksum_archivo",
+            unique=True,
+            partialFilterExpression={"deleted_at": {"$type": "null"}},
+        )
+        self.collection.create_index([("created_at", -1), ("_id", -1)])
+        logger.info("Indexes ensured on collection=%s", self.collection.name)
 
     def save_document(self, document: dict) -> ObjectId:
         result = self.collection.insert_one(document)
@@ -117,3 +121,10 @@ class DocumentRepository:
 @lru_cache(maxsize=1)
 def get_document_repository() -> DocumentRepository:
     return DocumentRepository()
+
+
+def close_document_repository() -> None:
+    if get_document_repository.cache_info().currsize:
+        get_document_repository().client.close()
+        get_document_repository.cache_clear()
+        logger.info("MongoDB client closed")

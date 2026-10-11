@@ -1,7 +1,8 @@
 services:
   api:
-    image: pdf-extractext-api:0.1.0
+    image: ghcr.io/gianluca-gitea/pdf-extractext:${IMAGE_TAG:-local}
     build: .
+    restart: unless-stopped
     deploy:
       replicas: 5
       resources:
@@ -18,7 +19,7 @@ services:
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB_NAME=pdf-extractext
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:$${PORT:-8000}/health')\""]
       interval: 10s
       timeout: 5s
       retries: 3
