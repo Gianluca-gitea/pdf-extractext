@@ -7,7 +7,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-API_URL = "http://127.0.0.1:8000"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000")
 
 archivo_pdf = None
 texto_extraido_global = ""
@@ -84,7 +84,7 @@ def _enviar_pdf(endpoint, campo_texto):
         messagebox.showerror(
             "Error de Conexión",
             "No se pudo conectar con el servidor backend.\n\n"
-            "Asegurate de que Uvicorn esté corriendo en el puerto 8000."
+            f"Asegurate de que la API esté corriendo en {API_URL}."
         )
     except Exception as e:
         logger.error("Exception occurred during text extraction: %s", e, exc_info=True)

@@ -1,3 +1,4 @@
+import importlib
 import requests
 import tkinter as tk
 from unittest.mock import MagicMock
@@ -283,3 +284,13 @@ def test_extraer_texto_envia_el_nombre_real_del_archivo(mocker):
     interface.extraer_texto()
 
     assert mock_post.call_args.kwargs["files"]["file"][0] == "mi_documento.pdf"
+
+
+def test_api_url_se_lee_del_entorno(monkeypatch):
+    monkeypatch.setenv("API_URL", "http://api.ejemplo:9000")
+    try:
+        importlib.reload(interface)
+        assert interface.API_URL == "http://api.ejemplo:9000"
+    finally:
+        monkeypatch.delenv("API_URL")
+        importlib.reload(interface)

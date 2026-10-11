@@ -84,3 +84,50 @@ def test_get_settings_allows_100_pending_extractions_by_default(monkeypatch) -> 
     monkeypatch.delenv("APP_MAX_PENDING_EXTRACTIONS", raising=False)
 
     assert get_settings().max_pending_extractions == 100
+
+
+def test_get_settings_reads_mongodb_config_from_environment(monkeypatch) -> None:
+    monkeypatch.setenv("MONGODB_URI", "mongodb://db:27017")
+    monkeypatch.setenv("MONGODB_DB_NAME", "test-db")
+    monkeypatch.setenv("MONGO_COLLECTION_NAME", "test-docs")
+
+    settings = get_settings()
+
+    assert settings.mongodb_uri == "mongodb://db:27017"
+    assert settings.mongodb_db_name == "test-db"
+    assert settings.mongodb_collection_name == "test-docs"
+
+
+def test_get_settings_uses_mongodb_defaults(monkeypatch) -> None:
+    for name in ("MONGODB_URI", "MONGODB_DB_NAME", "MONGO_COLLECTION_NAME"):
+        monkeypatch.delenv(name, raising=False)
+
+    settings = get_settings()
+
+    assert settings.mongodb_uri == "mongodb://localhost:27017"
+    assert settings.mongodb_db_name == "pdf-extractext"
+    assert settings.mongodb_collection_name == "documents"
+
+
+def test_settings_repr_hides_mongodb_uri(monkeypatch) -> None:
+    monkeypatch.setenv("MONGODB_URI", "mongodb+srv://user:secreto@cluster")
+
+    assert "secreto" not in repr(get_settings())
+
+
+def test_get_settings_uses_info_log_level_by_default(monkeypatch) -> None:
+    monkeypatch.delenv("APP_LOG_LEVEL", raising=False)
+
+    assert get_settings().log_level == "INFO"
+
+
+def test_get_settings_reads_log_level_case_insensitive(monkeypatch) -> None:
+    monkeypatch.setenv("APP_LOG_LEVEL", "debug")
+
+    assert get_settings().log_level == "DEBUG"
+
+
+def test_get_settings_uses_default_for_invalid_log_level(monkeypatch) -> None:
+    monkeypatch.setenv("APP_LOG_LEVEL", "verboso")
+
+    assert get_settings().log_level == "INFO"

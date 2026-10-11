@@ -16,3 +16,14 @@ def test_module_logger_inherits_level_from_root(module_name) -> None:
     importlib.import_module(module_name)
 
     assert logging.getLogger(module_name).level == logging.NOTSET
+
+
+def test_configure_logging_sets_root_level(monkeypatch) -> None:
+    from app.logging_config import configure_logging
+
+    root = logging.getLogger()
+    monkeypatch.setattr(root, "level", root.level)
+
+    configure_logging("WARNING")
+
+    assert root.level == logging.WARNING
