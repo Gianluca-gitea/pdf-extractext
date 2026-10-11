@@ -16,15 +16,6 @@ dependencies = [
     "pymongo>=4.17.0",
     "pytesseract>=0.3.13",
     "python-dotenv>=1.2.2",
-    "requests>=2.34.2"
-]
-
-[project.optional-dependencies]
-dev = [
-    "pytest==9.0.3",
-    "pytest-cov==4.1.0",
-    "black==26.3.1",
-    "mypy==1.8.0"
 ]
 
 [build-system]
@@ -44,7 +35,7 @@ markers = [
 
 [tool.black]
 line-length = 100
-target-version = ["py312"]
+target-version = ["py314"]
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -61,7 +52,7 @@ extend-exclude = '''
 '''
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = false
@@ -83,7 +74,17 @@ exclude_lines = [
 
 [dependency-groups]
 dev = [
+    "black>=26.3.1",
+    "flake8>=7.4.1",
     "httpx>=0.28.1",
+    "mypy>=1.8.0",
     "pytest>=9.0.3",
+    "pytest-cov>=4.1.0",
     "pytest-mock>=3.15.1",
 ]
+gui = [
+    "requests>=2.34.2",
+]
+
+[tool.uv]
+default-groups = ["dev", "gui"]
