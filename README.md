@@ -226,8 +226,33 @@ Las siguientes variables de entorno (o archivo `.env`) configuran el proyecto:
 * `APP_OCR_ENABLED`: activa el OCR de imágenes con `true`. Por defecto es `false`.
 * `APP_EXTRACT_WORKERS`: cantidad de extracciones simultáneas por réplica. Por defecto es `1`.
 * `APP_MAX_PENDING_EXTRACTIONS`: máximo de extracciones en curso o en espera por réplica; al superarlo, `/extract` responde `503`. Por defecto es `100`.
+* `APP_LOG_LEVEL`: nivel de log (`DEBUG`, `INFO`, `WARNING`, `ERROR`). Por defecto es `INFO`.
+* `PORT`: puerto en el que escucha la API. Por defecto es `8000`.
 * `MONGODB_URI`: URI de conexión a la base de datos (por defecto `mongodb://localhost:27017`).
 * `MONGODB_DB_NAME`: Nombre de la base de datos (por defecto `pdf-extractext`).
+* `MONGO_COLLECTION_NAME`: Nombre de la colección (por defecto `documents`).
+* `API_URL`: URL de la API que usa la interfaz gráfica (por defecto `http://127.0.0.1:8000`).
+
+---
+
+## Procesos de administración
+
+Los índices de MongoDB (incluido el índice único sobre `checksum_archivo`, que evita duplicados entre uploads simultáneos) se crean con un comando puntual que usa el mismo código y la misma configuración que la API. Hay que correrlo una vez por base de datos y es seguro repetirlo:
+
+```bash
+uv run python -m app.admin.create_indexes            # sin Docker
+docker compose run --rm api python -m app.admin.create_indexes   # con Docker
+```
+
+---
+
+## Releases
+
+El CI publica en GHCR una imagen por cada push a `main`, etiquetada con el SHA del commit (`sha-<commit>`), y otra por cada tag `vX.Y.Z`. Para desplegar o volver a un release concreto:
+
+```bash
+IMAGE_TAG=sha-<commit> docker compose up -d --no-build
+```
 
 ---
 
