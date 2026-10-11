@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock
 
 from bson.objectid import ObjectId
+from pymongo.errors import DuplicateKeyError
 
 from app.services import pdf_service
 
@@ -231,3 +232,17 @@ def test_process_pdf_upload_uses_shared_repository_by_default(monkeypatch) -> No
     pdf_service.process_pdf_upload(file_name="a.pdf", file_bytes=b"%PDF-1.4", ocr_enabled=False)
 
     shared_repository.find_by_checksum.assert_called_once()
+
+
+def test_process_pdf_upload_returns_winner_of_concurrent_duplicate_upload(monkeypatch) -> None:
+    winner = {"_id": "id-ganador", "txt_contenido": "texto"}
+    repository = MagicMock()
+    repository.find_by_checksum.side_effect = [None, winner]
+    repository.save_document.side_effect = DuplicateKeyError("checksum duplicado")
+    monkeypatch.setattr(pdf_service, "extract_text_from_pdf_bytes", lambda *_, **__: "texto")
+
+    result = pdf_service.process_pdf_upload(
+        file_name="a.pdf", file_bytes=b"%PDF-1.4", ocr_enabled=False, repository=repository
+    )
+
+    assert result == {"document_id": "id-ganador", "document": winner}
