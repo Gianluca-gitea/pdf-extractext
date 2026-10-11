@@ -15,7 +15,6 @@ from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
 from pathlib import Path
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -74,10 +73,7 @@ def _extract_text_from_block(block: dict) -> list[str]:
     block_type = block.get("type")
     logger.debug("Extracting text from block: type=%s", block_type)
     if block_type == TEXT_BLOCK:
-        lines = [
-            _join_spans(line).strip()
-            for line in block.get("lines", [])
-        ]
+        lines = [_join_spans(line).strip() for line in block.get("lines", [])]
         valid_lines = [line for line in lines if line]
         joined_text = _join_text_rows(valid_lines)
         return [joined_text] if joined_text else []
@@ -149,7 +145,9 @@ def _to_markdown(block: dict, text: str, body_size: float) -> str:
     return text
 
 
-def extract_markdown_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> dict[str, str | int]:
+def extract_markdown_from_pdf_bytes(
+    file_bytes: bytes, *, ocr_enabled: bool
+) -> dict[str, str | int]:
     logger.info("Starting PDF markdown extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
 
     blocks, page_count = _read_blocks(file_bytes, ocr_enabled)
@@ -223,7 +221,7 @@ def process_pdf_upload(
         texto_extraido=texto_extraido,
         checksum_archivo=checksum,
         duracion_ms=duration_ms,
-        estado="ok"
+        estado="ok",
     )
 
     try:

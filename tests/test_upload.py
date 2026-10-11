@@ -89,7 +89,9 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch, pdf_bytes) -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
-    assert response.json() == {"detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)}
+    assert response.json() == {
+        "detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)
+    }
 
 
 def test_download_document_returns_txt_attachment(monkeypatch) -> None:
@@ -179,7 +181,8 @@ def test_upload_pdf_processes_outside_the_event_loop(monkeypatch, pdf_bytes) -> 
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 200
-    
+
+
 def test_upload_pdf_keeps_large_file_in_memory(monkeypatch) -> None:
     rollovers = []
     monkeypatch.setattr(SpooledTemporaryFile, "rollover", lambda self: rollovers.append(self))
@@ -189,8 +192,10 @@ def test_upload_pdf_keeps_large_file_in_memory(monkeypatch) -> None:
         MagicMock(return_value={"document_id": "id", "document": {"txt_contenido": ""}}),
     )
     large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)  # 2 MB PDF content
-    
-    response = client.post("/documents/upload", files={"file": ("grande.pdf", large_pdf, "application/pdf")})
+
+    response = client.post(
+        "/documents/upload", files={"file": ("grande.pdf", large_pdf, "application/pdf")}
+    )
 
     assert response.status_code == 200
     assert rollovers == []

@@ -55,7 +55,9 @@ def test_extract_rejects_empty_body() -> None:
 
 
 def test_extract_rejects_file_over_max_size(monkeypatch, pdf_bytes) -> None:
-    monkeypatch.setattr(main_module, "settings", replace(main_module.settings, max_pdf_size_bytes=10))
+    monkeypatch.setattr(
+        main_module, "settings", replace(main_module.settings, max_pdf_size_bytes=10)
+    )
 
     response = client.post(
         "/extract",
@@ -123,11 +125,15 @@ def test_get_extraction_pool_creates_one_thread_pool_from_settings(monkeypatch) 
     pool_class.assert_called_once_with(max_workers=3)
 
 
-def test_extract_runs_extraction_in_the_extraction_pool(monkeypatch, pdf_bytes, thread_pool) -> None:
+def test_extract_runs_extraction_in_the_extraction_pool(
+    monkeypatch, pdf_bytes, thread_pool
+) -> None:
     submitted = MagicMock(wraps=thread_pool.submit)
     monkeypatch.setattr(thread_pool, "submit", submitted)
 
-    response = client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
+    response = client.post(
+        "/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"}
+    )
 
     assert response.status_code == 200
     submitted.assert_called_once_with(
@@ -136,11 +142,15 @@ def test_extract_runs_extraction_in_the_extraction_pool(monkeypatch, pdf_bytes, 
 
 
 def test_extract_rejects_with_503_when_pending_limit_is_reached(monkeypatch, pdf_bytes) -> None:
-    monkeypatch.setattr(main_module, "_pending_extractions", main_module.settings.max_pending_extractions)
+    monkeypatch.setattr(
+        main_module, "_pending_extractions", main_module.settings.max_pending_extractions
+    )
     extractor = MagicMock()
     monkeypatch.setattr(main_module, "extract_markdown_from_pdf_bytes", extractor)
 
-    response = client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
+    response = client.post(
+        "/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"}
+    )
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "1"
@@ -156,11 +166,14 @@ def test_extract_releases_pending_slot_after_success_and_failure(pdf_bytes, thre
 
 
 def test_extract_works_with_the_real_extraction_pool(pdf_bytes) -> None:
-    response = client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
+    response = client.post(
+        "/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"}
+    )
 
     assert response.status_code == 200
     assert response.json() == {"content": "Hola extract", "page_count": 1}
-    
+
+
 def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
     rollovers = []
     monkeypatch.setattr(SpooledTemporaryFile, "rollover", lambda self: rollovers.append(self))
@@ -175,7 +188,6 @@ def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert rollovers == []
-
 
 
 def test_shutdown_closes_extraction_pool_and_mongo_client(monkeypatch) -> None:

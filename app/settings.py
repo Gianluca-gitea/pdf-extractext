@@ -31,11 +31,16 @@ def _positive_int_env(name: str, default: int) -> int:
     try:
         value = int(raw)
     except ValueError:
-        logger.warning("Invalid %s value provided: '%s'. Falling back to default: %d", name, raw, default)
+        logger.warning(
+            "Invalid %s value provided: '%s'. Falling back to default: %d", name, raw, default
+        )
         return default
     if value <= 0:
         logger.warning(
-            "%s must be strictly positive (got %d). Falling back to default: %d", name, value, default
+            "%s must be strictly positive (got %d). Falling back to default: %d",
+            name,
+            value,
+            default,
         )
         return default
     return value
@@ -44,7 +49,9 @@ def _positive_int_env(name: str, default: int) -> int:
 def _log_level_env(name: str, default: str) -> str:
     raw = os.getenv(name, default).upper()
     if raw not in logging.getLevelNamesMapping():
-        logger.warning("Invalid %s value provided: '%s'. Falling back to default: %s", name, raw, default)
+        logger.warning(
+            "Invalid %s value provided: '%s'. Falling back to default: %s", name, raw, default
+        )
         return default
     return raw
 

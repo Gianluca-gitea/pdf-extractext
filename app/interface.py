@@ -17,16 +17,12 @@ texto_extraido_global = ""
 def seleccionar_pdf():
     global archivo_pdf
 
-    archivo = filedialog.askopenfilename(
-        filetypes=[("PDF Files", "*.pdf")]
-    )
+    archivo = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
 
     if archivo:
         logger.info("PDF file selected via UI: %s", archivo)
         archivo_pdf = archivo
-        label_archivo.config(
-            text=f"PDF seleccionado:\n{archivo}"
-        )
+        label_archivo.config(text=f"PDF seleccionado:\n{archivo}")
     else:
         logger.debug("PDF file selection cancelled by user")
 
@@ -37,29 +33,17 @@ def _enviar_pdf(endpoint, campo_texto):
 
     if not archivo_pdf:
         logger.warning("Extraction attempted but no PDF was selected")
-        messagebox.showwarning(
-            "Advertencia",
-            "Seleccioná un PDF primero."
-        )
+        messagebox.showwarning("Advertencia", "Seleccioná un PDF primero.")
         return
 
     logger.info("Starting text extraction process for file: %s", archivo_pdf)
 
     try:
         with open(archivo_pdf, "rb") as pdf:
-            files = {
-                "file": (
-                    os.path.basename(archivo_pdf),
-                    pdf,
-                    "application/pdf"
-                )
-            }
+            files = {"file": (os.path.basename(archivo_pdf), pdf, "application/pdf")}
 
             logger.debug("Sending POST request to %s", endpoint)
-            response = requests.post(
-                f"{API_URL}{endpoint}",
-                files=files
-            )
+            response = requests.post(f"{API_URL}{endpoint}", files=files)
 
         if response.status_code == 200:
             logger.info("Backend request successful (200 OK)")
@@ -75,7 +59,7 @@ def _enviar_pdf(endpoint, campo_texto):
             logger.error(
                 "Backend request failed: status_code=%d response=%s",
                 response.status_code,
-                response.text
+                response.text,
             )
             messagebox.showerror("Error", response.text)
 
@@ -84,7 +68,7 @@ def _enviar_pdf(endpoint, campo_texto):
         messagebox.showerror(
             "Error de Conexión",
             "No se pudo conectar con el servidor backend.\n\n"
-            f"Asegurate de que la API esté corriendo en {API_URL}."
+            f"Asegurate de que la API esté corriendo en {API_URL}.",
         )
     except Exception as e:
         logger.error("Exception occurred during text extraction: %s", e, exc_info=True)
@@ -103,33 +87,23 @@ def extraer_markdown():
 def _descargar(extension, formato, descripcion):
     if not texto_extraido_global:
         logger.warning("%s download attempted but no text is available in memory", formato)
-        messagebox.showwarning(
-            "Advertencia",
-            "No hay texto para descargar."
-        )
+        messagebox.showwarning("Advertencia", "No hay texto para descargar.")
         return
 
     archivo_guardado = filedialog.asksaveasfilename(
         defaultextension=extension,
         filetypes=[(descripcion, f"*{extension}")],
-        title=f"Guardar {formato}"
+        title=f"Guardar {formato}",
     )
 
     if archivo_guardado:
         logger.info("Saving extracted text to local path: %s", archivo_guardado)
         try:
-            with open(
-                archivo_guardado,
-                "w",
-                encoding="utf-8"
-            ) as file:
+            with open(archivo_guardado, "w", encoding="utf-8") as file:
                 file.write(texto_extraido_global)
 
             logger.info("%s file successfully saved", formato)
-            messagebox.showinfo(
-                "Éxito",
-                f"{formato} descargado correctamente."
-            )
+            messagebox.showinfo("Éxito", f"{formato} descargado correctamente.")
         except Exception as e:
             logger.error("Failed to write %s file to disk: %s", formato, e, exc_info=True)
             messagebox.showerror("Error", f"Error al guardar: {str(e)}")
@@ -157,15 +131,13 @@ def cargar_lista_historial(tree):
             for d in docs:
                 fecha = d.get("created_at", "")[:16].replace("T", " ")
                 tree.insert(
-                    "",
-                    tk.END,
-                    values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
+                    "", tk.END, values=(d.get("_id"), d.get("pdf_nombre"), d.get("estado"), fecha)
                 )
         else:
             logger.error(
                 "Failed to load history: status_code=%d response=%s",
                 response.status_code,
-                response.text
+                response.text,
             )
             messagebox.showerror("Error", "No se pudo cargar el historial.")
     except ConnectionError as e:
@@ -181,7 +153,7 @@ def ver_texto_historial(tree, ventana_historial):
         messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
         return
 
-    doc_id = tree.item(seleccion[0])['values'][0]
+    doc_id = tree.item(seleccion[0])["values"][0]
     logger.info("Fetching text for document id: %s", doc_id)
 
     try:
@@ -201,7 +173,7 @@ def ver_texto_historial(tree, ventana_historial):
             logger.error(
                 "Failed to load document text: status_code=%d response=%s",
                 resp.status_code,
-                resp.text
+                resp.text,
             )
             messagebox.showerror("Error", "No se pudo cargar el documento.")
     except ConnectionError as e:
@@ -216,13 +188,11 @@ def renombrar_historial(tree):
         messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
         return
 
-    doc_id = tree.item(seleccion[0])['values'][0]
-    nombre_actual = tree.item(seleccion[0])['values'][1]
+    doc_id = tree.item(seleccion[0])["values"][0]
+    nombre_actual = tree.item(seleccion[0])["values"][1]
 
     nuevo_nombre = simpledialog.askstring(
-        "Renombrar",
-        "Nuevo nombre del PDF:",
-        initialvalue=nombre_actual
+        "Renombrar", "Nuevo nombre del PDF:", initialvalue=nombre_actual
     )
 
     if nuevo_nombre and nuevo_nombre != nombre_actual:
@@ -230,12 +200,11 @@ def renombrar_historial(tree):
             "Attempting to rename document id: %s from '%s' to '%s'",
             doc_id,
             nombre_actual,
-            nuevo_nombre
+            nuevo_nombre,
         )
         try:
             resp = requests.patch(
-                f"{API_URL}/documents/{doc_id}",
-                json={"pdf_nombre": nuevo_nombre}
+                f"{API_URL}/documents/{doc_id}", json={"pdf_nombre": nuevo_nombre}
             )
             if resp.status_code == 200:
                 logger.info("Document successfully renamed")
@@ -244,7 +213,7 @@ def renombrar_historial(tree):
                 logger.error(
                     "Failed to rename document: status_code=%d response=%s",
                     resp.status_code,
-                    resp.text
+                    resp.text,
                 )
                 messagebox.showerror("Error", f"Fallo al renombrar: {resp.json().get('detail')}")
         except ConnectionError as e:
@@ -261,7 +230,7 @@ def eliminar_historial(tree):
         messagebox.showwarning("Advertencia", "Seleccioná un documento de la lista.")
         return
 
-    doc_id = tree.item(seleccion[0])['values'][0]
+    doc_id = tree.item(seleccion[0])["values"][0]
     msg = "¿Seguro que querés eliminar este documento de la base de datos?"
     if messagebox.askyesno("Confirmar", msg):
         logger.info("Attempting to delete document id: %s", doc_id)
@@ -274,7 +243,7 @@ def eliminar_historial(tree):
                 logger.error(
                     "Failed to delete document: status_code=%d response=%s",
                     resp.status_code,
-                    resp.text
+                    resp.text,
                 )
                 messagebox.showerror("Error", "No se pudo eliminar.")
         except ConnectionError as e:
@@ -316,7 +285,7 @@ def abrir_historial():
         command=lambda: ver_texto_historial(tree, ventana_historial),
         bg="#2196F3",
         fg="black",
-        font=("Arial", 10, "bold")
+        font=("Arial", 10, "bold"),
     )
     btn_ver.pack(side=tk.LEFT, padx=5)
 
@@ -326,7 +295,7 @@ def abrir_historial():
         command=lambda: renombrar_historial(tree),
         bg="#FFEB3B",
         fg="black",
-        font=("Arial", 10, "bold")
+        font=("Arial", 10, "bold"),
     )
     btn_renombrar.pack(side=tk.LEFT, padx=5)
 
@@ -336,7 +305,7 @@ def abrir_historial():
         command=lambda: eliminar_historial(tree),
         bg="#F44336",
         fg="black",
-        font=("Arial", 10, "bold")
+        font=("Arial", 10, "bold"),
     )
     btn_eliminar.pack(side=tk.LEFT, padx=5)
 
@@ -346,7 +315,7 @@ def abrir_historial():
         command=lambda: cargar_lista_historial(tree),
         bg="#4CAF50",
         fg="black",
-        font=("Arial", 10, "bold")
+        font=("Arial", 10, "bold"),
     )
     btn_actualizar.pack(side=tk.LEFT, padx=5)
 
@@ -363,11 +332,7 @@ ventana.config(bg="#1e1e1e")
 
 # Título
 titulo = tk.Label(
-    ventana,
-    text="Extractor de PDF",
-    font=("Arial", 24, "bold"),
-    bg="#1e1e1e",
-    fg="white"
+    ventana, text="Extractor de PDF", font=("Arial", 24, "bold"), bg="#1e1e1e", fg="white"
 )
 
 titulo.pack(pady=20)
@@ -381,18 +346,14 @@ boton_pdf = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 
 boton_pdf.pack(pady=10)
 
 # Label PDF seleccionado
 label_archivo = tk.Label(
-    ventana,
-    text="Ningún PDF seleccionado",
-    bg="#1e1e1e",
-    fg="white",
-    font=("Arial", 10)
+    ventana, text="Ningún PDF seleccionado", bg="#1e1e1e", fg="white", font=("Arial", 10)
 )
 
 label_archivo.pack(pady=10)
@@ -406,7 +367,7 @@ boton_extraer = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 
 boton_extraer.pack(pady=10)
@@ -419,7 +380,7 @@ boton_extraer_md = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 
 boton_extraer_md.pack(pady=10)
@@ -433,7 +394,7 @@ boton_descargar = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 
 boton_descargar.pack(pady=10)
@@ -446,7 +407,7 @@ boton_descargar_md = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 
 boton_descargar_md.pack(pady=10)
@@ -459,25 +420,14 @@ boton_historial = tk.Button(
     fg="black",
     font=("Arial", 12),
     padx=10,
-    pady=5
+    pady=5,
 )
 boton_historial.pack(pady=5)
 
 # Área de texto
-texto_resultado = tk.Text(
-    ventana,
-    wrap="word",
-    font=("Arial", 11),
-    bg="#2d2d2d",
-    fg="white"
-)
+texto_resultado = tk.Text(ventana, wrap="word", font=("Arial", 11), bg="#2d2d2d", fg="white")
 
-texto_resultado.pack(
-    padx=20,
-    pady=20,
-    fill="both",
-    expand=True
-)
+texto_resultado.pack(padx=20, pady=20, fill="both", expand=True)
 
 # Ejecutar ventana
 if __name__ == "__main__":

@@ -85,6 +85,8 @@ def test_update_document_rejects_invalid_estado() -> None:
 
 def test_document_service_uses_shared_repository_by_default(monkeypatch) -> None:
     shared_repository = MagicMock()
-    monkeypatch.setattr(document_service_module, "get_document_repository", lambda: shared_repository)
+    monkeypatch.setattr(
+        document_service_module, "get_document_repository", lambda: shared_repository
+    )
 
     assert DocumentService().repository is shared_repository
