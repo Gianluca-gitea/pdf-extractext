@@ -9,7 +9,7 @@ from app.repositories.document_repository import DocumentRepository, get_documen
 logger = logging.getLogger(__name__)
 
 ALLOWED_ESTADOS = {"pendiente", "ok", "error"}
-ALLOWED_ESTADO_TRANSITIONS = {
+ALLOWED_ESTADO_TRANSITIONS: dict[str | None, set[str]] = {
     None: {"pendiente", "ok", "error"},
     "pendiente": {"ok", "error"},
     "error": {"pendiente"},

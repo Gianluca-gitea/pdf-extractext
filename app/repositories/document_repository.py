@@ -44,7 +44,8 @@ class DocumentRepository:
             document.get("checksum_archivo"),
             result.inserted_id,
         )
-        return result.inserted_id
+        inserted_id: ObjectId = result.inserted_id
+        return inserted_id
 
     def _not_deleted_filter(self) -> dict:
         return {"$or": [{"deleted_at": None}, {"deleted_at": {"$exists": False}}]}
