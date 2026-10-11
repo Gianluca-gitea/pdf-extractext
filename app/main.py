@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import math
 import sys
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import asynccontextmanager
 from datetime import datetime
 from functools import lru_cache
 from time import perf_counter
@@ -19,6 +19,8 @@ from pydantic import BaseModel, Field
 from starlette.datastructures import UploadFile as FormFile
 from starlette.formparsers import MultiPartParser
 
+from app.logging_config import configure_logging
+from app.repositories.document_repository import close_document_repository
 from app.services.document_service import DocumentService, InvalidStatusTransitionError
 from app.services.pdf_service import (
     InvalidPDFError,
@@ -28,13 +30,6 @@ from app.services.pdf_service import (
 from app.settings import get_settings
 
 load_dotenv()
-
-logging.basicConfig(
-    stream=sys.stdout,
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
 
 EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
 MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
@@ -47,9 +42,20 @@ MAX_LIST_LIMIT = 100
 
 
 settings = get_settings()
+configure_logging(settings.log_level)
 logger = logging.getLogger(__name__)
+logger.info("Settings loaded: %s", settings)
 MultiPartParser.spool_max_size = sys.maxsize
-app = FastAPI(title=settings.app_name, version=settings.app_version)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    yield
+    shutdown_extraction_pool()
+    close_document_repository()
+
+
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
 _pending_extractions = 0
 
 
@@ -259,6 +265,13 @@ async def _read_pdf_payload(request: Request) -> tuple[bytes, str]:
 def get_extraction_pool() -> ThreadPoolExecutor:
     logger.info("Starting extraction pool: workers=%d", settings.extract_workers)
     return ThreadPoolExecutor(max_workers=settings.extract_workers)
+
+
+def shutdown_extraction_pool() -> None:
+    if get_extraction_pool.cache_info().currsize:
+        get_extraction_pool().shutdown()
+        get_extraction_pool.cache_clear()
+        logger.info("Extraction pool stopped")
 
 
 @app.post("/extract")

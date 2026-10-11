@@ -8,6 +8,7 @@ from time import perf_counter
 from typing import Any
 
 import fitz
+from pymongo.errors import DuplicateKeyError
 
 from app.repositories.document_repository import DocumentRepository, get_document_repository
 from app.services.checksum_service import calc_checksum
@@ -172,6 +173,10 @@ def _save_text_to_disk(file_name: str, text: str) -> str:
     return txt_name
 
 
+def _as_result(document: dict) -> dict[str, Any]:
+    return {"document_id": str(document.get("_id", "")), "document": document}
+
+
 def process_pdf_upload(
     *,
     file_name: str,
@@ -198,15 +203,7 @@ def process_pdf_upload(
             existing.get("_id"),
         )
 
-        texto_extraido = existing.get("txt_contenido", "")
-
-        # Deshabilitado para evitar guardado automático local en el backend
-        # _save_text_to_disk(file_name, texto_extraido)
-
-        return {
-            "document_id": str(existing.get("_id", "")),
-            "document": existing,
-        }
+        return _as_result(existing)
 
     texto_extraido = extract_text_from_pdf_bytes(file_bytes, ocr_enabled=ocr_enabled)
     logger.debug(
@@ -228,7 +225,12 @@ def process_pdf_upload(
         estado="ok"
     )
 
-    inserted_id = active_repository.save_document(document)
+    try:
+        inserted_id = active_repository.save_document(document)
+    except DuplicateKeyError:
+        logger.info("Concurrent upload already saved checksum=%s", checksum)
+        return _as_result(active_repository.find_by_checksum(checksum))
+
     logger.info(
         "Saved new document: filename=%s checksum=%s inserted_id=%s duration_ms=%d",
         file_name,
