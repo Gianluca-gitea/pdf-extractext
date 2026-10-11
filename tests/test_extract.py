@@ -176,3 +176,18 @@ def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
     assert response.status_code == 200
     assert rollovers == []
 
+
+
+def test_shutdown_closes_extraction_pool_and_mongo_client(monkeypatch) -> None:
+    pool_class = MagicMock()
+    close_repository = MagicMock()
+    monkeypatch.setattr(main_module, "ThreadPoolExecutor", pool_class)
+    monkeypatch.setattr(main_module, "close_document_repository", close_repository)
+    main_module.get_extraction_pool.cache_clear()
+
+    with TestClient(main_module.app):
+        main_module.get_extraction_pool()
+
+    pool_class.return_value.shutdown.assert_called_once_with()
+    close_repository.assert_called_once_with()
+    assert main_module.get_extraction_pool.cache_info().currsize == 0
