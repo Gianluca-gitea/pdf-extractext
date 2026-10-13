@@ -1,0 +1,31 @@
+[project]
+name = "pdf-extractext-gui"
+version = "0.1.0"
+description = "Interfaz de escritorio (Tkinter) para PDF Extractext"
+requires-python = ">=3.14"
+authors = [{name = "PDF Extract", email = "contact@pdfextract.local"}]
+license = {text = "MIT"}
+
+dependencies = [
+    "requests>=2.34.2",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "--strict-markers -v"
+
+[tool.black]
+line-length = 100
+target-version = ["py314"]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
+    "flake8>=7.4.1",
+    "pytest>=9.0.3",
+    "pytest-mock>=3.15.1",
+]

@@ -13,6 +13,13 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [ extract, documents ]
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
 
     steps:
     - uses: actions/checkout@v5
@@ -24,11 +31,9 @@ jobs:
       uses: astral-sh/setup-uv@v6
       with:
         enable-cache: true
+        cache-dependency-glob: services/${{ matrix.service }}/uv.lock
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y xvfb
-        uv sync --frozen
+      run: uv sync --frozen
     - name: Lint with flake8
       run: |
         # stop the build if there are Python syntax errors or undefined names
@@ -40,12 +45,44 @@ jobs:
     - name: Type check with mypy
       run: uv run mypy app
     - name: Test with pytest
+      run: uv run pytest
+
+  gui:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gui
+
+    steps:
+    - uses: actions/checkout@v5
+    - name: Set up Python 3.14
+      uses: actions/setup-python@v6
+      with:
+        python-version: "3.14"
+    - name: Set up uv
+      uses: astral-sh/setup-uv@v6
+      with:
+        enable-cache: true
+        cache-dependency-glob: gui/uv.lock
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb
+        uv sync --frozen
+    - name: Lint with flake8
+      run: uv run flake8 . --exclude .venv --count --select=E9,F63,F7,F82 --show-source --statistics
+    - name: Check formatting with black
+      run: uv run black --check .
+    - name: Test with pytest
       run: xvfb-run uv run pytest
 
   image:
-    needs: test
+    needs: [ test, gui ]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [ extract, documents ]
     permissions:
       contents: read
       packages: write
@@ -60,13 +97,13 @@ jobs:
     - id: meta
       uses: docker/metadata-action@v5
       with:
-        images: ghcr.io/${{ github.repository }}
+        images: ghcr.io/${{ github.repository }}-${{ matrix.service }}
         tags: |
           type=sha,format=long
           type=semver,pattern={{version}}
     - uses: docker/build-push-action@v6
       with:
-        context: .
+        context: services/${{ matrix.service }}
         push: true
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}

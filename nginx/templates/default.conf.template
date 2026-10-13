@@ -2,11 +2,18 @@ log_format upstream '$remote_addr "$request" $status upstream=$upstream_addr tim
 
 resolver ${NGINX_LOCAL_RESOLVERS} valid=10s ipv6=off;
 
-upstream api {
-    zone api 64k;
+upstream extract {
+    zone extract 64k;
     least_conn;
-    server api:8000 resolve;
+    server extract:8000 resolve;
     keepalive 32;
+}
+
+upstream documents {
+    zone documents 64k;
+    least_conn;
+    server documents:8000 resolve;
+    keepalive 16;
 }
 
 server {
@@ -14,11 +21,26 @@ server {
     access_log /dev/stdout upstream;
     client_max_body_size 11m;
 
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_request_buffering off;
+    proxy_read_timeout 60s;
+
+    location /extract {
+        proxy_pass http://extract;
+    }
+
+    location /documents {
+        proxy_pass http://documents;
+    }
+
+    location = /health {
+        default_type application/json;
+        return 200 '{"status":"ok"}';
+    }
+
     location / {
-        proxy_pass http://api;
-        proxy_http_version 1.1;
-        proxy_set_header Connection "";
-        proxy_request_buffering off;
-        proxy_read_timeout 60s;
+        default_type application/json;
+        return 404 '{"detail":"Not Found"}';
     }
 }

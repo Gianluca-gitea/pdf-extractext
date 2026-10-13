@@ -1,7 +1,14 @@
+x-healthcheck: &healthcheck
+  test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:$${PORT:-8000}/health')\""]
+  interval: 10s
+  timeout: 5s
+  retries: 3
+  start_period: 10s
+
 services:
-  api:
-    image: ghcr.io/gianluca-gitea/pdf-extractext:${IMAGE_TAG:-local}
-    build: .
+  extract:
+    image: ghcr.io/gianluca-gitea/pdf-extractext-extract:${IMAGE_TAG:-local}
+    build: ./services/extract
     restart: unless-stopped
     deploy:
       replicas: 5
@@ -10,21 +17,34 @@ services:
           cpus: "1.0"
           memory: 1g
     environment:
-      - APP_NAME=PDF Extractext API
+      - APP_NAME=PDF Extractext Extract
       - APP_MAX_PDF_SIZE_BYTES=10485760
       - APP_OCR_ENABLED=false
       - APP_EXTRACT_WORKERS=1
       - APP_MAX_PENDING_EXTRACTIONS=100
+    healthcheck: *healthcheck
+
+  documents:
+    image: ghcr.io/gianluca-gitea/pdf-extractext-documents:${IMAGE_TAG:-local}
+    build: ./services/documents
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256m
+    environment:
+      - APP_NAME=PDF Extractext Documents
+      - APP_MAX_PDF_SIZE_BYTES=10485760
       - MONGODB_URI=mongodb://mongodb:27017
       - MONGODB_DB_NAME=pdf-extractext
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:$${PORT:-8000}/health')\""]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
+      - EXTRACT_SERVICE_URL=http://extract:8000
+      - EXTRACT_TIMEOUT_S=30
+    healthcheck: *healthcheck
     depends_on:
       mongodb:
+        condition: service_healthy
+      extract:
         condition: service_healthy
 
   nginx:
@@ -41,7 +61,9 @@ services:
           cpus: "1.0"
           memory: 256m
     depends_on:
-      api:
+      extract:
+        condition: service_healthy
+      documents:
         condition: service_healthy
 
   mongodb:
