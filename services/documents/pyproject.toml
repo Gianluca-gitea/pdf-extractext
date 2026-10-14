@@ -1,0 +1,78 @@
+[project]
+name = "pdf-extractext-documents"
+version = "0.1.0"
+description = "Microservicio de documentos: persistencia en MongoDB, deduplicación por checksum y estados"
+requires-python = ">=3.14"
+authors = [{name = "PDF Extract", email = "contact@pdfextract.local"}]
+license = {text = "MIT"}
+
+dependencies = [
+    "fastapi>=0.120.0",
+    "uvicorn[standard]>=0.32.0",
+    "python-multipart>=0.0.31",
+    "pymongo>=4.17.0",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers -v"
+markers = [
+    "unit: unit tests",
+    "integration: integration tests"
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py314"]
+include = '\.pyi?$'
+extend-exclude = '''
+/(
+  \.eggs
+  | \.git
+  | \.mypy_cache
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.14"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["*/tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[dependency-groups]
+dev = [
+    "black>=26.3.1",
+    "flake8>=7.4.1",
+    "httpx>=0.28.1",
+    "mypy>=1.8.0",
+    "pytest>=9.0.3",
+    "pytest-cov>=4.1.0",
+    "pytest-mock>=3.15.1",
+]

@@ -1,0 +1,26 @@
+FROM python:3.14-slim
+
+WORKDIR /app
+
+RUN pip install --no-cache-dir uv
+
+RUN addgroup --system appgroup && \
+    adduser --system --ingroup appgroup --home /home/appuser appuser
+
+RUN chown -R appuser:appgroup /app
+
+USER appuser
+
+ENV UV_CACHE_DIR=/tmp/.uv-cache
+
+COPY --chown=appuser:appgroup pyproject.toml uv.lock ./
+
+RUN uv sync --frozen --no-default-groups --no-cache
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+COPY --chown=appuser:appgroup app/ ./app/
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
