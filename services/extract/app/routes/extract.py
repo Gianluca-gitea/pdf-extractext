@@ -25,7 +25,7 @@ from app.pdf_service import (
 from app.models import ExtractionResult
 from app.settings import get_settings
 
-Extractor = Callable[..., dict[str, str | int]]
+Extractor = Callable[..., ExtractionResult]
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -89,7 +89,7 @@ def shutdown_extraction_pool() -> None:
         logger.info("Extraction pool stopped")
 
 
-async def _run_extraction(request: Request, extractor: Extractor) -> dict[str, str | int]:
+async def _run_extraction(request: Request, extractor: Extractor) -> ExtractionResult:
     global _pending_extractions
     path = request.url.path
     if _pending_extractions >= settings.max_pending_extractions:
@@ -136,10 +136,10 @@ async def _run_extraction(request: Request, extractor: Extractor) -> dict[str, s
 
 
 @router.post("/extract", response_model=ExtractionResult)
-async def extract(request: Request) -> dict[str, str | int]:
+async def extract(request: Request) -> ExtractionResult:
     return await _run_extraction(request, extract_markdown_from_pdf_bytes)
 
 
 @router.post("/extract/text", response_model=ExtractionResult)
-async def extract_text(request: Request) -> dict[str, str | int]:
+async def extract_text(request: Request) -> ExtractionResult:
     return await _run_extraction(request, extract_text_from_pdf_bytes)

@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,6 +7,24 @@ from pymongo.errors import DuplicateKeyError
 
 from app.services import upload_service
 from app.services.extract_client import InvalidPDFError
+from app.models import DocumentBuilt, ExtractionResult, ProcessedUploadResult
+
+
+def _make_builtin_document(**overrides) -> DocumentBuilt:
+    data = {
+        "pdf_nombre": "documento.pdf",
+        "txt_contenido": "texto extraido",
+        "txt_chars": len("texto extraido"),
+        "checksum_archivo": "checksum123",
+        "checksum_algoritmo": "sha256",
+        "estado": "ok",
+        "error": None,
+        "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
+        "duracion_ms": 100,
+    }
+    data.update(overrides)
+    return DocumentBuilt(**data)
 
 
 def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
@@ -25,19 +44,14 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
 
     captured_builder_args = {}
 
-    def fake_builder(**kwargs):
+    def fake_builder(**kwargs) -> DocumentBuilt:
         captured_builder_args.update(kwargs)
-        return {
-            "pdf_nombre": kwargs["pdf_nombre"],
-            "txt_contenido": kwargs["texto_extraido"],
-            "txt_chars": len(kwargs["texto_extraido"]),
-            "checksum_archivo": kwargs["checksum_archivo"],
-            "checksum_algoritmo": "sha256",
-            "estado": "ok",
-            "error": None,
-            "created_at": "now",
-            "duracion_ms": kwargs["duracion_ms"],
-        }
+        return _make_builtin_document(
+            pdf_nombre=kwargs["pdf_nombre"],
+            txt_contenido=kwargs["texto_extraido"],
+            checksum_archivo=kwargs["checksum_archivo"],
+            duracion_ms=kwargs["duracion_ms"],
+        )
 
     monkeypatch.setattr(upload_service, "construir_documento", fake_builder)
 
@@ -45,16 +59,19 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
         file_name=file_name,
         file_bytes=file_bytes,
         repository=repository,
-        extractor=lambda received_bytes: "texto extraido",
+        extractor=lambda received_bytes: ExtractionResult(
+            content="texto extraido", page_count=1
+        ),
     )
 
+    assert isinstance(result, ProcessedUploadResult)
     assert captured_builder_args["pdf_nombre"] == file_name
     assert captured_builder_args["texto_extraido"] == "texto extraido"
     assert captured_builder_args["checksum_archivo"] == "checksum123"
     assert isinstance(captured_builder_args["duracion_ms"], int)
-    repository.save_document.assert_called_once_with(result["document"])
-    assert result["document"]["txt_contenido"] == "texto extraido"
-    assert result["document_id"] == "507f1f77bcf86cd799439011"
+    repository.save_document.assert_called_once_with(result.document)
+    assert result.document.txt_contenido == "texto extraido"
+    assert result.document_id == "507f1f77bcf86cd799439011"
 
 
 def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
@@ -63,7 +80,16 @@ def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
     repository = MagicMock()
     repository.find_by_checksum.return_value = {
         "_id": ObjectId("507f1f77bcf86cd799439011"),
+        "pdf_nombre": "documento.pdf",
         "txt_contenido": "texto ya procesado",
+        "txt_chars": 20,
+        "checksum_archivo": "checksum123",
+        "checksum_algoritmo": "sha256",
+        "estado": "ok",
+        "error": None,
+        "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
+        "duracion_ms": 50,
     }
     extractor = MagicMock()
     monkeypatch.setattr(upload_service, "calc_checksum", lambda received_bytes: "checksum123")
@@ -77,14 +103,15 @@ def test_process_pdf_upload_returns_existing_document_if_checksum_is_found(
 
     extractor.assert_not_called()
     repository.save_document.assert_not_called()
-    assert result["document_id"] == "507f1f77bcf86cd799439011"
-    assert result["document"]["txt_contenido"] == "texto ya procesado"
+    assert isinstance(result, ProcessedUploadResult)
+    assert result.document_id == "507f1f77bcf86cd799439011"
+    assert result.document.txt_contenido == "texto ya procesado"
 
 
 def test_process_pdf_upload_sends_file_bytes_to_extractor() -> None:
     repository = MagicMock()
     repository.find_by_checksum.return_value = None
-    extractor = MagicMock(return_value="texto")
+    extractor = MagicMock(return_value=ExtractionResult(content="texto", page_count=1))
 
     upload_service.process_pdf_upload(
         file_name="documento.pdf",
@@ -99,7 +126,9 @@ def test_process_pdf_upload_sends_file_bytes_to_extractor() -> None:
 def test_process_pdf_upload_uses_extract_client_by_default(monkeypatch) -> None:
     repository = MagicMock()
     repository.find_by_checksum.return_value = None
-    extract_text = MagicMock(return_value="texto remoto")
+    extract_text = MagicMock(
+        return_value=ExtractionResult(content="texto remoto", page_count=1)
+    )
     monkeypatch.setattr(upload_service, "extract_text", extract_text)
 
     result = upload_service.process_pdf_upload(
@@ -107,7 +136,8 @@ def test_process_pdf_upload_uses_extract_client_by_default(monkeypatch) -> None:
     )
 
     extract_text.assert_called_once_with(b"%PDF-1.4")
-    assert result["document"]["txt_contenido"] == "texto remoto"
+    assert isinstance(result, ProcessedUploadResult)
+    assert result.document.txt_contenido == "texto remoto"
 
 
 def test_process_pdf_upload_does_not_save_when_extraction_fails() -> None:
@@ -119,7 +149,10 @@ def test_process_pdf_upload_does_not_save_when_extraction_fails() -> None:
 
     with pytest.raises(InvalidPDFError):
         upload_service.process_pdf_upload(
-            file_name="a.pdf", file_bytes=b"basura", repository=repository, extractor=invalid_pdf
+            file_name="a.pdf",
+            file_bytes=b"basura",
+            repository=repository,
+            extractor=invalid_pdf,
         )
 
     repository.save_document.assert_not_called()
@@ -127,7 +160,19 @@ def test_process_pdf_upload_does_not_save_when_extraction_fails() -> None:
 
 def test_process_pdf_upload_uses_shared_repository_by_default(monkeypatch) -> None:
     shared_repository = MagicMock()
-    shared_repository.find_by_checksum.return_value = {"_id": "id", "txt_contenido": "texto"}
+    shared_repository.find_by_checksum.return_value = {
+        "_id": "id",
+        "txt_contenido": "texto",
+        "pdf_nombre": "a.pdf",
+        "txt_chars": 5,
+        "checksum_archivo": "abc",
+        "checksum_algoritmo": "sha256",
+        "estado": "ok",
+        "error": None,
+        "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
+        "duracion_ms": 0,
+    }
     monkeypatch.setattr(upload_service, "get_document_repository", lambda: shared_repository)
 
     upload_service.process_pdf_upload(file_name="a.pdf", file_bytes=b"%PDF-1.4")
@@ -136,19 +181,24 @@ def test_process_pdf_upload_uses_shared_repository_by_default(monkeypatch) -> No
 
 
 def test_process_pdf_upload_returns_winner_of_concurrent_duplicate_upload() -> None:
-    winner = {"_id": "id-ganador", "txt_contenido": "texto"}
+    winner_model = _make_builtin_document(txt_contenido="texto")
     repository = MagicMock()
-    repository.find_by_checksum.side_effect = [None, winner]
+    repository.find_by_checksum.side_effect = [
+        None,
+        {"_id": "id-ganador", **winner_model.model_dump()},
+    ]
     repository.save_document.side_effect = DuplicateKeyError("checksum duplicado")
 
     result = upload_service.process_pdf_upload(
         file_name="a.pdf",
         file_bytes=b"%PDF-1.4",
         repository=repository,
-        extractor=lambda _: "texto",
+        extractor=lambda _: ExtractionResult(content="texto", page_count=1),
     )
 
-    assert result == {"document_id": "id-ganador", "document": winner}
+    assert isinstance(result, ProcessedUploadResult)
+    assert result.document_id == "id-ganador"
+    assert result.document.txt_contenido == "texto"
 
 
 def test_process_pdf_upload_reraises_duplicate_when_winner_is_gone() -> None:
@@ -161,5 +211,5 @@ def test_process_pdf_upload_reraises_duplicate_when_winner_is_gone() -> None:
             file_name="a.pdf",
             file_bytes=b"%PDF-1.4",
             repository=repository,
-            extractor=lambda _: "texto",
+            extractor=lambda _: ExtractionResult(content="texto", page_count=1),
         )

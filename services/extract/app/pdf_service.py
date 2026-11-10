@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import logging
 from app.markdown import format_markdown
+from app.models import ExtractionResult
 from app.pdf_reader import _read_blocks
 from app.errors import InvalidPDFError as InvalidPDFError
 from app.messages import INVALID_PDF_CONTENT_ERROR as INVALID_PDF_CONTENT_ERROR
@@ -76,7 +77,7 @@ def _extract_text_from_block(block: dict) -> list[str]:
     return []
 
 
-def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> dict[str, str | int]:
+def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> ExtractionResult:
     logger.info("Starting PDF text extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
     blocks, page_count = _read_blocks(file_bytes, ocr_enabled)
 
@@ -84,15 +85,15 @@ def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> dict
         [text for block in blocks for text in _extract_text_from_block(block)]
     )
     logger.info("Extraction complete: pages=%d chars=%d", page_count, len(text_txt))
-    return {"content": text_txt, "page_count": page_count}
+    return ExtractionResult(content=text_txt, page_count=page_count)
 
 
 def extract_markdown_from_pdf_bytes(
     file_bytes: bytes, *, ocr_enabled: bool
-) -> dict[str, str | int]:
+) -> ExtractionResult:
     logger.info("Starting PDF markdown extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
 
     blocks, page_count = _read_blocks(file_bytes, ocr_enabled)
     content = format_markdown(blocks, [_extract_text_from_block(block) for block in blocks])
     logger.info("Markdown extraction complete: pages=%d chars=%d", page_count, len(content))
-    return {"content": content, "page_count": page_count}
+    return ExtractionResult(content=content, page_count=page_count)

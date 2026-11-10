@@ -7,6 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.models import ExtractionResult
 from app.routes import extract as main_module
 from app import pdf_service as pdf_service_module
 
@@ -85,7 +86,7 @@ def test_extract_rejects_invalid_pdf_content() -> None:
 
 def test_extract_forwards_ocr_setting(monkeypatch, pdf_bytes, thread_pool) -> None:
     monkeypatch.setattr(main_module, "settings", replace(main_module.settings, ocr_enabled=True))
-    extractor = MagicMock(return_value={"content": "x", "page_count": 1})
+    extractor = MagicMock(return_value=ExtractionResult(content="x", page_count=1))
     monkeypatch.setattr(main_module, "extract_markdown_from_pdf_bytes", extractor)
 
     client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
@@ -164,7 +165,7 @@ def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
     monkeypatch.setattr(
         main_module,
         "extract_markdown_from_pdf_bytes",
-        lambda file_bytes, ocr_enabled: {"content": "", "page_count": 1},
+        lambda file_bytes, ocr_enabled: ExtractionResult(content="", page_count=1),
     )
     large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)
 

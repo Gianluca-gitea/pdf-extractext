@@ -5,20 +5,36 @@ from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 
 from app import main as main_module
+from app.models import PublicDocument, DocumentResponse, DocumentList
 from app.routes import documents as document_routes
 from app.services.document_service import InvalidStatusTransitionError
 
 client = TestClient(main_module.app)
 
 
+def _make_public_document(**overrides) -> PublicDocument:
+    data = {
+        "id": "507f1f77bcf86cd799439011",
+        "pdf_nombre": "doc.pdf",
+        "txt_contenido": "texto",
+        "txt_chars": 4,
+        "checksum_archivo": "abc123",
+        "checksum_algoritmo": "sha256",
+        "estado": "ok",
+        "error": None,
+        "created_at": "2024-01-01T00:00:00+00:00",
+        "deleted_at": None,
+        "duracion_ms": 100,
+    }
+    data.update(overrides)
+    return PublicDocument(**data)
+
+
 def test_list_documents_returns_serialized_items(monkeypatch) -> None:
-    document_id = ObjectId("507f1f77bcf86cd799439011")
+    document_id = "507f1f77bcf86cd799439011"
     service = MagicMock()
     service.list_documents.return_value = [
-        {
-            "_id": document_id,
-            "pdf_nombre": "doc.pdf",
-        }
+        _make_public_document(id=document_id, pdf_nombre="doc.pdf")
     ]
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
@@ -27,7 +43,7 @@ def test_list_documents_returns_serialized_items(monkeypatch) -> None:
     assert response.status_code == 200
     body = response.json()
     assert body["count"] == 1
-    assert body["items"][0]["_id"] == "507f1f77bcf86cd799439011"
+    assert body["items"][0]["_id"] == document_id
     service.list_documents.assert_called_once_with(skip=0, limit=20, include_text=False)
 
 
@@ -43,14 +59,14 @@ def test_list_documents_respects_query_params(monkeypatch) -> None:
 
 
 def test_list_documents_serializes_datetime(monkeypatch) -> None:
-    document_id = ObjectId("507f1f77bcf86cd799439011")
+    document_id = "507f1f77bcf86cd799439011"
     created_at = datetime(2024, 1, 1, tzinfo=timezone.utc)
     service = MagicMock()
     service.list_documents.return_value = [
-        {
-            "_id": document_id,
-            "created_at": created_at,
-        }
+        _make_public_document(
+            id=document_id,
+            created_at=created_at,
+        )
     ]
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
@@ -62,35 +78,33 @@ def test_list_documents_serializes_datetime(monkeypatch) -> None:
 
 
 def test_get_document_by_id_returns_document(monkeypatch) -> None:
-    document_id = ObjectId("507f1f77bcf86cd799439011")
+    document_id = "507f1f77bcf86cd799439011"
     service = MagicMock()
-    service.get_document_by_id.return_value = {
-        "_id": document_id,
-        "pdf_nombre": "doc.pdf",
-    }
+    service.get_document_by_id.return_value = _make_public_document(
+        id=document_id, pdf_nombre="doc.pdf"
+    )
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}")
 
     assert response.status_code == 200
     body = response.json()
-    assert body["document"]["_id"] == "507f1f77bcf86cd799439011"
-    service.get_document_by_id.assert_called_once_with(document_id, include_text=True)
+    assert body["document"]["_id"] == document_id
+    service.get_document_by_id.assert_called_once_with(ObjectId(document_id), include_text=True)
 
 
 def test_get_document_by_id_excludes_text_when_requested(monkeypatch) -> None:
-    document_id = ObjectId("507f1f77bcf86cd799439011")
+    document_id = "507f1f77bcf86cd799439011"
     service = MagicMock()
-    service.get_document_by_id.return_value = {
-        "_id": document_id,
-        "pdf_nombre": "doc.pdf",
-    }
+    service.get_document_by_id.return_value = _make_public_document(
+        id=document_id, pdf_nombre="doc.pdf"
+    )
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}?include_text=false")
 
     assert response.status_code == 200
-    service.get_document_by_id.assert_called_once_with(document_id, include_text=False)
+    service.get_document_by_id.assert_called_once_with(ObjectId(document_id), include_text=False)
 
 
 def test_get_document_by_id_returns_404_when_missing(monkeypatch) -> None:
@@ -112,13 +126,11 @@ def test_get_document_by_id_rejects_invalid_id() -> None:
 
 
 def test_update_document_updates_fields(monkeypatch) -> None:
-    document_id = ObjectId("507f1f77bcf86cd799439011")
+    document_id = "507f1f77bcf86cd799439011"
     service = MagicMock()
-    service.update_document.return_value = {
-        "_id": document_id,
-        "pdf_nombre": "nuevo.pdf",
-        "estado": "ok",
-    }
+    service.update_document.return_value = _make_public_document(
+        id=document_id, pdf_nombre="nuevo.pdf", estado="ok"
+    )
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.patch(
@@ -128,7 +140,7 @@ def test_update_document_updates_fields(monkeypatch) -> None:
 
     assert response.status_code == 200
     service.update_document.assert_called_once_with(
-        document_id,
+        ObjectId(document_id),
         {"pdf_nombre": "nuevo.pdf", "estado": "ok"},
     )
 
@@ -217,3 +229,22 @@ def test_delete_document_rejects_invalid_id() -> None:
 
     assert response.status_code == 400
     assert response.json() == {"detail": document_routes.INVALID_DOCUMENT_ID_ERROR_DETAIL}
+
+
+def test_download_document_text_returns_txt_attachment(monkeypatch) -> None:
+    """Test para GET /documents/{id}/download con PublicDocument."""
+    document_id = "507f1f77bcf86cd799439011"
+    service = MagicMock()
+    service.get_document_by_id.return_value = _make_public_document(
+        id=document_id,
+        pdf_nombre="documento.pdf",
+        txt_contenido="texto descargable",
+    )
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
+
+    response = client.get(f"/documents/{document_id}/download")
+
+    assert response.status_code == 200
+    assert response.text == "texto descargable"
+    assert response.headers["content-disposition"] == 'attachment; filename="documento.pdf.txt"'
+    assert response.headers["content-type"].startswith("text/plain")

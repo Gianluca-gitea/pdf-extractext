@@ -5,6 +5,7 @@ import pytest
 from bson.objectid import ObjectId
 from pymongo import ReturnDocument
 
+from app.models import DocumentBuilt
 from app.repositories import document_repository as document_repository_module
 from app.repositories.document_repository import (
     DocumentRepository,
@@ -32,19 +33,18 @@ class TestDocumentRepository:
         return DocumentRepository(mongo_client=mock_client)
 
     @pytest.fixture
-    def valid_document(self) -> dict:
-        return {
-            "pdf_nombre": "test.pdf",
-            "txt_contenido": "content",
-            "txt_chars": 7,
-            "checksum_archivo": "abc123",
-            "checksum_algoritmo": "sha256",
-            "estado": "ok",
-            "error": None,
-            "created_at": datetime.now(timezone.utc),
-            "deleted_at": None,
-            "duracion_ms": 100,
-        }
+    def valid_document(self) -> DocumentBuilt:
+        return DocumentBuilt(
+            pdf_nombre="test.pdf",
+            txt_contenido="content",
+            txt_chars=7,
+            checksum_archivo="abc123",
+            estado="ok",
+            error=None,
+            created_at=datetime.now(timezone.utc),
+            deleted_at=None,
+            duracion_ms=100,
+        )
 
     def test_save_document_returns_inserted_id(
         self,
@@ -63,11 +63,11 @@ class TestDocumentRepository:
         self,
         repository: DocumentRepository,
         mock_collection: MagicMock,
-        valid_document: dict,
+        valid_document: DocumentBuilt,
     ) -> None:
         repository.save_document(valid_document)
 
-        mock_collection.insert_one.assert_called_once_with(valid_document)
+        mock_collection.insert_one.assert_called_once_with(valid_document.model_dump())
 
     def test_find_document_by_id_returns_document(
         self,

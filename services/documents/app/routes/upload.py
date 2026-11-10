@@ -41,7 +41,7 @@ def _ensure_valid_size(file_bytes: bytes, filename: str) -> None:
 
 
 @router.post("/documents/upload", response_model=UploadResponse)
-async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
+async def upload_pdf(file: UploadFile = File(...)) -> UploadResponse:
     file_bytes = await file.read(settings.max_pdf_size_bytes + 1)
     filename = file.filename or "sin_nombre.pdf"
     logger.info(
@@ -87,14 +87,14 @@ async def upload_pdf(file: UploadFile = File(...)) -> dict[str, str | int]:
     logger.info(
         "Upload processed successfully: filename=%s document_id=%s size_bytes=%d",
         filename,
-        result["document_id"],
+        result.document_id,
         len(file_bytes),
     )
 
-    return {
-        "filename": filename,
-        "content_type": file.content_type,
-        "size_bytes": len(file_bytes),
-        "extracted_text": result["document"]["txt_contenido"],
-        "status": "uploaded",
-    }
+    return UploadResponse(
+        filename=filename,
+        content_type=file.content_type,
+        size_bytes=len(file_bytes),
+        extracted_text=result.document.txt_contenido,
+        status="uploaded",
+    )

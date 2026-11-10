@@ -1,5 +1,6 @@
 import asyncio
 from dataclasses import replace
+from datetime import datetime, timezone
 from tempfile import SpooledTemporaryFile
 from unittest.mock import MagicMock
 
@@ -8,6 +9,7 @@ from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 
 from app import main as main_module
+from app.models import DocumentBuilt, ProcessedUploadResult, PublicDocument
 from app.routes import documents as document_routes, upload as upload_routes
 from app.services import extract_client as extract_client_module
 from app.services import upload_service as upload_service_module
@@ -15,16 +17,28 @@ from app.services import upload_service as upload_service_module
 client = TestClient(main_module.app)
 
 
+def _make_process_mock(document_id: str, txt_contenido: str) -> MagicMock:
+    return MagicMock(
+        return_value=ProcessedUploadResult(
+            document_id=document_id,
+            document=DocumentBuilt(
+                pdf_nombre="documento.pdf",
+                txt_contenido=txt_contenido,
+                txt_chars=len(txt_contenido),
+                checksum_archivo="abc",
+                estado="ok",
+                error=None,
+                created_at=datetime.now(timezone.utc),
+                deleted_at=None,
+                duracion_ms=0,
+            ),
+        )
+    )
+
+
 def test_upload_pdf_accepts_real_file(monkeypatch, pdf_bytes) -> None:
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
-    process_mock = MagicMock(
-        return_value={
-            "document_id": "507f1f77bcf86cd799439011",
-            "document": {
-                "txt_contenido": "",
-            },
-        }
-    )
+    process_mock = _make_process_mock("507f1f77bcf86cd799439011", "")
     monkeypatch.setattr(upload_routes, "process_pdf_upload", process_mock)
 
     response = client.post("/documents/upload", files=files)
@@ -40,14 +54,7 @@ def test_upload_pdf_accepts_real_file(monkeypatch, pdf_bytes) -> None:
 
 def test_upload_pdf_delegates_processing_to_upload_service(monkeypatch, pdf_bytes) -> None:
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
-    process_mock = MagicMock(
-        return_value={
-            "document_id": "507f1f77bcf86cd799439011",
-            "document": {
-                "txt_contenido": "texto desde service",
-            },
-        }
-    )
+    process_mock = _make_process_mock("507f1f77bcf86cd799439011", "texto desde service")
     monkeypatch.setattr(upload_routes, "process_pdf_upload", process_mock)
 
     response = client.post("/documents/upload", files=files)
@@ -145,7 +152,16 @@ def test_upload_pdf_does_not_call_extract_service_for_duplicates(monkeypatch, pd
     repository = MagicMock()
     repository.find_by_checksum.return_value = {
         "_id": ObjectId("507f1f77bcf86cd799439011"),
+        "pdf_nombre": "documento.pdf",
         "txt_contenido": "ya estaba",
+        "txt_chars": 8,
+        "checksum_archivo": "checksum-duplicate",
+        "checksum_algoritmo": "sha256",
+        "estado": "ok",
+        "error": None,
+        "created_at": datetime.now(timezone.utc),
+        "deleted_at": None,
+        "duracion_ms": 50,
     }
     monkeypatch.setattr(upload_service_module, "get_document_repository", lambda: repository)
     _extract_text_raising(monkeypatch, AssertionError("no deberia llamar a extract"))
@@ -174,11 +190,19 @@ def test_upload_pdf_rejects_file_over_max_size(monkeypatch, pdf_bytes) -> None:
 def test_download_document_returns_txt_attachment(monkeypatch) -> None:
     document_id = ObjectId("507f1f77bcf86cd799439011")
     service = MagicMock()
-    service.get_document_by_id.return_value = {
-        "_id": document_id,
-        "pdf_nombre": "documento.pdf",
-        "txt_contenido": "texto descargable",
-    }
+    service.get_document_by_id.return_value = PublicDocument(
+        id=str(document_id),
+        pdf_nombre="documento.pdf",
+        txt_contenido="texto descargable",
+        txt_chars=18,
+        checksum_archivo="abc",
+        checksum_algoritmo="sha256",
+        estado="ok",
+        error=None,
+        created_at="2024-01-01T00:00:00+00:00",
+        deleted_at=None,
+        duracion_ms=100,
+    )
 
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
@@ -203,11 +227,19 @@ def test_download_document_returns_404_for_missing_document(monkeypatch) -> None
 
 def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
     service = MagicMock()
-    service.get_document_by_checksum.return_value = {
-        "_id": ObjectId("507f1f77bcf86cd799439011"),
-        "pdf_nombre": "documento.pdf",
-        "txt_contenido": "texto existente",
-    }
+    service.get_document_by_checksum.return_value = PublicDocument(
+        id="507f1f77bcf86cd799439011",
+        pdf_nombre="documento.pdf",
+        txt_contenido="texto existente",
+        txt_chars=17,
+        checksum_archivo="checksum123",
+        checksum_algoritmo="sha256",
+        estado="ok",
+        error=None,
+        created_at="2024-01-01T00:00:00+00:00",
+        deleted_at=None,
+        duracion_ms=100,
+    )
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents/by-checksum/checksum123")
@@ -250,7 +282,20 @@ def test_upload_pdf_processes_outside_the_event_loop(monkeypatch, pdf_bytes) -> 
     def process_off_loop(**kwargs):
         with pytest.raises(RuntimeError):
             asyncio.get_running_loop()
-        return {"document_id": "id", "document": {"txt_contenido": ""}}
+        return ProcessedUploadResult(
+            document_id="id",
+            document=DocumentBuilt(
+                pdf_nombre="documento.pdf",
+                txt_contenido="",
+                txt_chars=0,
+                checksum_archivo="abc",
+                estado="ok",
+                error=None,
+                created_at=datetime.now(timezone.utc),
+                deleted_at=None,
+                duracion_ms=0,
+            ),
+        )
 
     monkeypatch.setattr(upload_routes, "process_pdf_upload", process_off_loop)
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
@@ -266,7 +311,7 @@ def test_upload_pdf_keeps_large_file_in_memory(monkeypatch) -> None:
     monkeypatch.setattr(
         upload_routes,
         "process_pdf_upload",
-        MagicMock(return_value={"document_id": "id", "document": {"txt_contenido": ""}}),
+        _make_process_mock("id", ""),
     )
     large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)  # 2 MB PDF content
 
@@ -293,10 +338,19 @@ def test_shutdown_closes_extract_client_and_mongo_client(monkeypatch) -> None:
 
 def test_download_supports_unicode_and_control_characters(monkeypatch):
     service = MagicMock()
-    service.get_document_by_id.return_value = {
-        "pdf_nombre": "informe\u00f1\U0001f4c4\r\n.pdf",
-        "txt_contenido": "texto",
-    }
+    service.get_document_by_id.return_value = PublicDocument(
+        id="507f1f77bcf86cd799439011",
+        pdf_nombre="informe\u00f1\U0001f4c4\r\n.pdf",
+        txt_contenido="texto",
+        txt_chars=4,
+        checksum_archivo="abc",
+        checksum_algoritmo="sha256",
+        estado="ok",
+        error=None,
+        created_at="2024-01-01T00:00:00+00:00",
+        deleted_at=None,
+        duracion_ms=100,
+    )
     monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
     response = client.get("/documents/507f1f77bcf86cd799439011/download")
     assert response.status_code == 200

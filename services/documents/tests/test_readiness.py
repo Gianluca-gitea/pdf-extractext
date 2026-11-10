@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from unittest.mock import MagicMock
 
 import httpx
@@ -5,6 +6,7 @@ import pytest
 from pymongo.errors import ConnectionFailure
 from fastapi.testclient import TestClient
 from app.main import app
+from app.models import DocumentBuilt, ProcessedUploadResult
 from app.services import health_service
 
 
@@ -52,7 +54,20 @@ def test_upload_recovers_without_another_readiness_check(monkeypatch):
     from app.routes import health, upload
 
     processor = MagicMock(
-        return_value={"document_id": "test", "document": {"txt_contenido": "text"}}
+        return_value=ProcessedUploadResult(
+            document_id="test",
+            document=DocumentBuilt(
+                pdf_nombre="test.pdf",
+                txt_contenido="text",
+                txt_chars=4,
+                checksum_archivo="abc",
+                estado="ok",
+                error=None,
+                created_at=datetime.now(timezone.utc),
+                deleted_at=None,
+                duracion_ms=0,
+            ),
+        )
     )
     monkeypatch.setattr(upload, "process_pdf_upload", processor)
     monkeypatch.setattr(health, "dependencies_ready", lambda: False)

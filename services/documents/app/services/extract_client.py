@@ -45,7 +45,7 @@ def _error_detail(response: httpx.Response) -> str:
         return response.text
 
 
-def extract_text(file_bytes: bytes, *, client: httpx.Client | None = None) -> str:
+def extract_text(file_bytes: bytes, *, client: httpx.Client | None = None) -> ExtractionResult:
     active_client = client or get_extract_client()
     logger.debug("Requesting text extraction: size_bytes=%d", len(file_bytes))
 
@@ -83,7 +83,7 @@ def extract_text(file_bytes: bytes, *, client: httpx.Client | None = None) -> st
         )
 
     try:
-        return ExtractionResult.model_validate(response.json()).content
+        return ExtractionResult.model_validate(response.json())
     except ValueError as exc:
         raise ExtractServiceUnavailableError(
             "Respuesta invalida del servicio de extraccion."

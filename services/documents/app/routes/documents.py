@@ -20,22 +20,6 @@ router = APIRouter()
 MAX_LIST_LIMIT = 100
 
 
-def _serialize_document(document: dict) -> dict:
-    document_copy = {**document}
-    document_id = document_copy.get("_id")
-    if document_id is not None:
-        document_copy["_id"] = str(document_id)
-
-    created_at = document_copy.get("created_at")
-    if isinstance(created_at, datetime):
-        document_copy["created_at"] = created_at.isoformat()
-
-    deleted_at = document_copy.get("deleted_at")
-    if isinstance(deleted_at, datetime):
-        document_copy["deleted_at"] = deleted_at.isoformat()
-    return document_copy
-
-
 def _parse_document_id(document_id: str) -> ObjectId:
     try:
         return ObjectId(document_id)
@@ -49,7 +33,7 @@ def _parse_document_id(document_id: str) -> ObjectId:
     response_model=DocumentResponse,
     response_model_exclude_unset=True,
 )
-def get_document_by_checksum(checksum: str) -> dict[str, object]:
+def get_document_by_checksum(checksum: str) -> DocumentResponse:
     logger.info("Requested document by checksum: %s", checksum)
     service = DocumentService()
     document = service.get_document_by_checksum(checksum)
@@ -58,11 +42,8 @@ def get_document_by_checksum(checksum: str) -> dict[str, object]:
         logger.warning("Document not found for checksum: %s", checksum)
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
 
-    logger.info("Document found for checksum: %s, document_id: %s", checksum, document.get("_id"))
-    return {
-        "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
-    }
+    logger.info("Document found for checksum: %s, document_id: %s", checksum, document.id)
+    return DocumentResponse(document_id=document.id, document=document)
 
 
 @router.get("/documents", response_model=DocumentList, response_model_exclude_unset=True)
@@ -70,24 +51,23 @@ def list_documents(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=MAX_LIST_LIMIT),
     include_text: bool = False,
-) -> dict[str, object]:
+) -> DocumentList:
     logger.info("Listing documents: skip=%d limit=%d include_text=%s", skip, limit, include_text)
     service = DocumentService()
     documents = service.list_documents(skip=skip, limit=limit, include_text=include_text)
 
-    serialized_documents = [_serialize_document(document) for document in documents]
-    return {
-        "items": serialized_documents,
-        "count": len(serialized_documents),
-        "skip": skip,
-        "limit": limit,
-    }
+    return DocumentList(
+        items=documents,
+        count=len(documents),
+        skip=skip,
+        limit=limit,
+    )
 
 
 @router.get(
     "/documents/{document_id}", response_model=DocumentResponse, response_model_exclude_unset=True
 )
-def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str, object]:
+def get_document_by_id(document_id: str, include_text: bool = True) -> DocumentResponse:
     logger.info("Requested document by id: %s", document_id)
     object_id = _parse_document_id(document_id)
     service = DocumentService()
@@ -97,16 +77,13 @@ def get_document_by_id(document_id: str, include_text: bool = True) -> dict[str,
         logger.warning("Document not found for id: %s", document_id)
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
 
-    return {
-        "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
-    }
+    return DocumentResponse(document_id=document.id, document=document)
 
 
 @router.patch(
     "/documents/{document_id}", response_model=DocumentResponse, response_model_exclude_unset=True
 )
-def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, object]:
+def update_document(document_id: str, payload: DocumentUpdate) -> DocumentResponse:
     logger.info("Updating document id: %s", document_id)
     object_id = _parse_document_id(document_id)
 
@@ -130,16 +107,13 @@ def update_document(document_id: str, payload: DocumentUpdate) -> dict[str, obje
         logger.warning("Update failed. Document not found for id: %s", document_id)
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
 
-    return {
-        "document_id": str(document.get("_id", "")),
-        "document": _serialize_document(document),
-    }
+    return DocumentResponse(document_id=document.id, document=document)
 
 
 @router.delete(
     "/documents/{document_id}", response_model=DeleteResponse, response_model_exclude_unset=True
 )
-def delete_document(document_id: str) -> dict[str, str]:
+def delete_document(document_id: str) -> DeleteResponse:
     logger.info("Deleting document id: %s", document_id)
     object_id = _parse_document_id(document_id)
     service = DocumentService()
@@ -149,9 +123,7 @@ def delete_document(document_id: str) -> dict[str, str]:
         logger.warning("Delete failed. Document not found for id: %s", document_id)
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
 
-    return {
-        "status": "deleted",
-    }
+    return DeleteResponse(status="deleted")
 
 
 @router.get("/documents/{document_id}/download")
@@ -166,8 +138,8 @@ def download_document_text(document_id: str) -> Response:
         logger.warning("Download failed: Document not found for ID: %s", document_id)
         raise HTTPException(status_code=404, detail=DOCUMENT_NOT_FOUND)
 
-    txt_content = document.get("txt_contenido", "")
-    downloaded_filename = f"{document.get('pdf_nombre', 'documento')}.txt"
+    txt_content = document.txt_contenido or ""
+    downloaded_filename = f"{document.pdf_nombre or 'documento'}.txt"
 
     logger.info(
         "Download processed successfully for document_id: %s, filename: %s",
