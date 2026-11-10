@@ -200,6 +200,11 @@ Si deseas usar el backend de forma independiente sin la interfaz, estos son los 
 * `GET /health`
   * Retorna `{ "status": "ok" }`. Cada servicio expone también su propio `/health`.
 
+* `GET /ready`
+  * documents comprueba MongoDB con `ping` y extract mediante HTTP, con plazos de 2 segundos. Devuelve 503 si una dependencia falla o responde datos inválidos.
+  * extract no depende de documents; nginx delega `/ready` a documents y Compose usa readiness en sus health checks.
+  * `/health` (también `/health/live`) comprueba liveness. Readiness no guarda estado ni bloquea operaciones futuras: los fallos durante operaciones siguen devolviendo 502/503/504.
+
 ### Servicio extract
 
 * `POST /extract`
@@ -319,3 +324,14 @@ uv --directory gui run pytest
 ```
 
 > Los dos servicios tienen un paquete llamado `app`, así que `pytest`, `mypy` y `black` se corren siempre dentro de la carpeta de cada servicio, nunca desde la raíz.
+
+Los endpoints se encuentran en `app/routes/` y `main.py` compone la aplicación.
+En extract, `pdf_reader.py` abre y lee PDFs, `pdf_service.py` procesa texto/OCR y
+`markdown.py` genera Markdown. Cada servicio mantiene sus propios contratos
+Pydantic, errores y mensajes, sin dependencias compartidas entre servicios.
+
+El smoke manual `tests/integration/smoke.py` comprueba el flujo real con un PDF
+sintético y biblioteca estándar. Con el stack y sus índices preparados, ejecutar
+`python tests/integration/smoke.py`; `API_URL` permite indicar otra URL del gateway.
+Usar una base de pruebas: crea un documento y al terminar lo borra lógicamente.
+El smoke no forma parte del CI.

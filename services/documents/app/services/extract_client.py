@@ -1,37 +1,23 @@
 from __future__ import annotations
 
+from app.errors import (
+    InvalidPDFError as InvalidPDFError,
+    ExtractServiceBusyError as ExtractServiceBusyError,
+    ExtractServiceUnavailableError as ExtractServiceUnavailableError,
+    ExtractServiceTimeoutError as ExtractServiceTimeoutError,
+)
+
 import logging
 from functools import lru_cache
 
 import httpx
 
+from app.models import ExtractionResult
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
 EXTRACT_TEXT_PATH = "/extract/text"
-
-
-class InvalidPDFError(ValueError):
-    pass
-
-
-class ExtractServiceError(RuntimeError):
-    pass
-
-
-class ExtractServiceBusyError(ExtractServiceError):
-    def __init__(self, retry_after: str) -> None:
-        super().__init__("Servicio de extracción saturado.")
-        self.retry_after = retry_after
-
-
-class ExtractServiceUnavailableError(ExtractServiceError):
-    pass
-
-
-class ExtractServiceTimeoutError(ExtractServiceUnavailableError):
-    pass
 
 
 @lru_cache(maxsize=1)
@@ -55,7 +41,7 @@ def close_extract_client() -> None:
 def _error_detail(response: httpx.Response) -> str:
     try:
         return str(response.json()["detail"])
-    except Exception:
+    except ValueError, KeyError, TypeError:
         return response.text
 
 
@@ -89,13 +75,16 @@ def extract_text(file_bytes: bytes, *, client: httpx.Client | None = None) -> st
 
     if response.status_code != 200:
         logger.error(
-            "Extract service failed: status_code=%d response=%s",
+            "Extract service failed: status_code=%d",
             response.status_code,
-            response.text,
         )
         raise ExtractServiceUnavailableError(
             f"El servicio de extracción respondió {response.status_code}."
         )
 
-    content: str = response.json()["content"]
-    return content
+    try:
+        return ExtractionResult.model_validate(response.json()).content
+    except ValueError as exc:
+        raise ExtractServiceUnavailableError(
+            "Respuesta invalida del servicio de extraccion."
+        ) from exc

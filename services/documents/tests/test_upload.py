@@ -8,6 +8,7 @@ from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 
 from app import main as main_module
+from app.routes import documents as document_routes, upload as upload_routes
 from app.services import extract_client as extract_client_module
 from app.services import upload_service as upload_service_module
 
@@ -24,7 +25,7 @@ def test_upload_pdf_accepts_real_file(monkeypatch, pdf_bytes) -> None:
             },
         }
     )
-    monkeypatch.setattr(main_module, "process_pdf_upload", process_mock)
+    monkeypatch.setattr(upload_routes, "process_pdf_upload", process_mock)
 
     response = client.post("/documents/upload", files=files)
 
@@ -47,7 +48,7 @@ def test_upload_pdf_delegates_processing_to_upload_service(monkeypatch, pdf_byte
             },
         }
     )
-    monkeypatch.setattr(main_module, "process_pdf_upload", process_mock)
+    monkeypatch.setattr(upload_routes, "process_pdf_upload", process_mock)
 
     response = client.post("/documents/upload", files=files)
 
@@ -65,7 +66,7 @@ def test_upload_pdf_rejects_non_pdf_file() -> None:
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.INVALID_CONTENT_TYPE_ERROR_DETAIL}
+    assert response.json() == {"detail": upload_routes.INVALID_CONTENT_TYPE_ERROR_DETAIL}
 
 
 @pytest.fixture
@@ -107,7 +108,7 @@ def test_upload_pdf_returns_503_when_extract_service_is_busy(
 
     assert response.status_code == 503
     assert response.headers["retry-after"] == "2"
-    assert response.json() == {"detail": main_module.SERVICE_BUSY_ERROR_DETAIL}
+    assert response.json() == {"detail": upload_routes.SERVICE_BUSY_ERROR_DETAIL}
     empty_repository.save_document.assert_not_called()
 
 
@@ -158,15 +159,15 @@ def test_upload_pdf_does_not_call_extract_service_for_duplicates(monkeypatch, pd
 
 
 def test_upload_pdf_rejects_file_over_max_size(monkeypatch, pdf_bytes) -> None:
-    limited_settings = replace(main_module.settings, max_pdf_size_bytes=10)
-    monkeypatch.setattr(main_module, "settings", limited_settings)
+    limited_settings = replace(upload_routes.settings, max_pdf_size_bytes=10)
+    monkeypatch.setattr(upload_routes, "settings", limited_settings)
 
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 413
     assert response.json() == {
-        "detail": main_module.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)
+        "detail": upload_routes.MAX_FILE_SIZE_ERROR_TEMPLATE.format(max_size=10)
     }
 
 
@@ -179,7 +180,7 @@ def test_download_document_returns_txt_attachment(monkeypatch) -> None:
         "txt_contenido": "texto descargable",
     }
 
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}/download")
 
@@ -192,7 +193,7 @@ def test_download_document_returns_txt_attachment(monkeypatch) -> None:
 def test_download_document_returns_404_for_missing_document(monkeypatch) -> None:
     service = MagicMock()
     service.get_document_by_id.return_value = None
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents/507f1f77bcf86cd799439011/download")
 
@@ -207,7 +208,7 @@ def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
         "pdf_nombre": "documento.pdf",
         "txt_contenido": "texto existente",
     }
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents/by-checksum/checksum123")
 
@@ -221,7 +222,7 @@ def test_get_document_by_checksum_returns_document(monkeypatch) -> None:
 def test_get_document_by_checksum_returns_404_when_missing(monkeypatch) -> None:
     service = MagicMock()
     service.get_document_by_checksum.return_value = None
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents/by-checksum/checksum123")
 
@@ -235,7 +236,7 @@ def test_upload_pdf_rejects_empty_file():
     response = client.post("/documents/upload", files=files)
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.EMPTY_FILE_ERROR_DETAIL}
+    assert response.json() == {"detail": upload_routes.EMPTY_FILE_ERROR_DETAIL}
 
 
 def test_download_document_rejects_invalid_object_id():
@@ -251,7 +252,7 @@ def test_upload_pdf_processes_outside_the_event_loop(monkeypatch, pdf_bytes) -> 
             asyncio.get_running_loop()
         return {"document_id": "id", "document": {"txt_contenido": ""}}
 
-    monkeypatch.setattr(main_module, "process_pdf_upload", process_off_loop)
+    monkeypatch.setattr(upload_routes, "process_pdf_upload", process_off_loop)
     files = {"file": ("documento.pdf", pdf_bytes, "application/pdf")}
 
     response = client.post("/documents/upload", files=files)
@@ -263,7 +264,7 @@ def test_upload_pdf_keeps_large_file_in_memory(monkeypatch) -> None:
     rollovers = []
     monkeypatch.setattr(SpooledTemporaryFile, "rollover", lambda self: rollovers.append(self))
     monkeypatch.setattr(
-        main_module,
+        upload_routes,
         "process_pdf_upload",
         MagicMock(return_value={"document_id": "id", "document": {"txt_contenido": ""}}),
     )
@@ -288,3 +289,17 @@ def test_shutdown_closes_extract_client_and_mongo_client(monkeypatch) -> None:
 
     close_extract.assert_called_once_with()
     close_repository.assert_called_once_with()
+
+
+def test_download_supports_unicode_and_control_characters(monkeypatch):
+    service = MagicMock()
+    service.get_document_by_id.return_value = {
+        "pdf_nombre": "informe\u00f1\U0001f4c4\r\n.pdf",
+        "txt_contenido": "texto",
+    }
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
+    response = client.get("/documents/507f1f77bcf86cd799439011/download")
+    assert response.status_code == 200
+    assert "\r" not in response.headers["content-disposition"]
+    assert "\n" not in response.headers["content-disposition"]
+    assert "filename*=UTF-8''" in response.headers["content-disposition"]

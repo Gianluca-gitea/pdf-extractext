@@ -4,6 +4,7 @@ import logging
 
 from bson.objectid import ObjectId
 
+from app.errors import InvalidStatusTransitionError as InvalidStatusTransitionError
 from app.repositories.document_repository import DocumentRepository, get_document_repository
 
 logger = logging.getLogger(__name__)
@@ -15,10 +16,6 @@ ALLOWED_ESTADO_TRANSITIONS: dict[str | None, set[str]] = {
     "error": {"pendiente"},
     "ok": set(),
 }
-
-
-class InvalidStatusTransitionError(ValueError):
-    pass
 
 
 class DocumentService:

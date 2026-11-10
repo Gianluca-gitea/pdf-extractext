@@ -1,0 +1,8 @@
+SERVICE_BUSY_ERROR_DETAIL = "Servicio saturado, reintentá en unos segundos."
+NO_UPDATE_FIELDS_ERROR_DETAIL = "No hay campos para actualizar."
+INVALID_DOCUMENT_ID_ERROR_DETAIL = "ID de documento inválido."
+INVALID_CONTENT_TYPE_ERROR_DETAIL = "El archivo debe enviarse como application/pdf."
+MAX_FILE_SIZE_ERROR_TEMPLATE = "El archivo supera el tamaño máximo permitido de {max_size} bytes."
+EMPTY_FILE_ERROR_DETAIL = "El archivo está vacio."
+DOCUMENT_NOT_FOUND = "Documento no encontrado."
+DEPENDENCIES_UNAVAILABLE = "Dependencias no disponibles."

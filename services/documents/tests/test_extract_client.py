@@ -119,3 +119,19 @@ def test_close_extract_client_does_nothing_when_not_started() -> None:
     close_extract_client()
 
     assert get_extract_client.cache_info().currsize == 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"content": 42, "page_count": 1}, {"content": "x", "page_count": -1}, {"content": "x"}],
+)
+def test_extract_rejects_invalid_success_contract(payload):
+    with pytest.raises(ExtractServiceUnavailableError):
+        extract_text(b"%PDF-1.4", client=_client(lambda request: httpx.Response(200, json=payload)))
+
+
+def test_extract_rejects_non_json_success():
+    with pytest.raises(ExtractServiceUnavailableError):
+        extract_text(
+            b"%PDF-1.4", client=_client(lambda request: httpx.Response(200, text="invalid"))
+        )

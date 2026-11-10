@@ -5,6 +5,7 @@ from bson.objectid import ObjectId
 from fastapi.testclient import TestClient
 
 from app import main as main_module
+from app.routes import documents as document_routes
 from app.services.document_service import InvalidStatusTransitionError
 
 client = TestClient(main_module.app)
@@ -19,7 +20,7 @@ def test_list_documents_returns_serialized_items(monkeypatch) -> None:
             "pdf_nombre": "doc.pdf",
         }
     ]
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents")
 
@@ -33,7 +34,7 @@ def test_list_documents_returns_serialized_items(monkeypatch) -> None:
 def test_list_documents_respects_query_params(monkeypatch) -> None:
     service = MagicMock()
     service.list_documents.return_value = []
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents?skip=5&limit=10&include_text=true")
 
@@ -51,7 +52,7 @@ def test_list_documents_serializes_datetime(monkeypatch) -> None:
             "created_at": created_at,
         }
     ]
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents")
 
@@ -67,7 +68,7 @@ def test_get_document_by_id_returns_document(monkeypatch) -> None:
         "_id": document_id,
         "pdf_nombre": "doc.pdf",
     }
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}")
 
@@ -84,7 +85,7 @@ def test_get_document_by_id_excludes_text_when_requested(monkeypatch) -> None:
         "_id": document_id,
         "pdf_nombre": "doc.pdf",
     }
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get(f"/documents/{document_id}?include_text=false")
 
@@ -95,7 +96,7 @@ def test_get_document_by_id_excludes_text_when_requested(monkeypatch) -> None:
 def test_get_document_by_id_returns_404_when_missing(monkeypatch) -> None:
     service = MagicMock()
     service.get_document_by_id.return_value = None
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.get("/documents/507f1f77bcf86cd799439011")
 
@@ -107,7 +108,7 @@ def test_get_document_by_id_rejects_invalid_id() -> None:
     response = client.get("/documents/id-invalido")
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.INVALID_DOCUMENT_ID_ERROR_DETAIL}
+    assert response.json() == {"detail": document_routes.INVALID_DOCUMENT_ID_ERROR_DETAIL}
 
 
 def test_update_document_updates_fields(monkeypatch) -> None:
@@ -118,7 +119,7 @@ def test_update_document_updates_fields(monkeypatch) -> None:
         "pdf_nombre": "nuevo.pdf",
         "estado": "ok",
     }
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.patch(
         f"/documents/{document_id}",
@@ -135,18 +136,18 @@ def test_update_document_updates_fields(monkeypatch) -> None:
 def test_update_document_rejects_empty_payload(monkeypatch) -> None:
     service = MagicMock()
     service.update_document.return_value = None
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.patch("/documents/507f1f77bcf86cd799439011", json={})
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.NO_UPDATE_FIELDS_ERROR_DETAIL}
+    assert response.json() == {"detail": document_routes.NO_UPDATE_FIELDS_ERROR_DETAIL}
 
 
 def test_update_document_returns_404_when_missing(monkeypatch) -> None:
     service = MagicMock()
     service.update_document.return_value = None
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.patch(
         "/documents/507f1f77bcf86cd799439011",
@@ -162,7 +163,7 @@ def test_update_document_rejects_invalid_status_transition(monkeypatch) -> None:
     service.update_document.side_effect = InvalidStatusTransitionError(
         "Transicion de estado invalida: error -> ok"
     )
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.patch(
         "/documents/507f1f77bcf86cd799439011",
@@ -177,7 +178,7 @@ def test_update_document_rejects_invalid_id() -> None:
     response = client.patch("/documents/id-invalido", json={"estado": "ok"})
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.INVALID_DOCUMENT_ID_ERROR_DETAIL}
+    assert response.json() == {"detail": document_routes.INVALID_DOCUMENT_ID_ERROR_DETAIL}
 
 
 def test_update_document_rejects_invalid_estado_schema() -> None:
@@ -192,7 +193,7 @@ def test_update_document_rejects_invalid_estado_schema() -> None:
 def test_delete_document_returns_deleted_status(monkeypatch) -> None:
     service = MagicMock()
     service.delete_document.return_value = True
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.delete("/documents/507f1f77bcf86cd799439011")
 
@@ -203,7 +204,7 @@ def test_delete_document_returns_deleted_status(monkeypatch) -> None:
 def test_delete_document_returns_404_when_missing(monkeypatch) -> None:
     service = MagicMock()
     service.delete_document.return_value = False
-    monkeypatch.setattr(main_module, "DocumentService", lambda: service)
+    monkeypatch.setattr(document_routes, "DocumentService", lambda: service)
 
     response = client.delete("/documents/507f1f77bcf86cd799439011")
 
@@ -215,4 +216,4 @@ def test_delete_document_rejects_invalid_id() -> None:
     response = client.delete("/documents/id-invalido")
 
     assert response.status_code == 400
-    assert response.json() == {"detail": main_module.INVALID_DOCUMENT_ID_ERROR_DETAIL}
+    assert response.json() == {"detail": document_routes.INVALID_DOCUMENT_ID_ERROR_DETAIL}
