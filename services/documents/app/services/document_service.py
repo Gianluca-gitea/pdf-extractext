@@ -1,24 +1,29 @@
 from __future__ import annotations
 
 import logging
+from typing import Literal
 
 from bson.objectid import ObjectId
 
+from app.errors import InvalidStatusTransitionError as InvalidStatusTransitionError
+from app.models import PublicDocument
 from app.repositories.document_repository import DocumentRepository, get_document_repository
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_ESTADOS = {"pendiente", "ok", "error"}
-ALLOWED_ESTADO_TRANSITIONS: dict[str | None, set[str]] = {
+ALLOWED_ESTADOS: set[Literal["pendiente", "ok", "error"]] = {
+    "pendiente",
+    "ok",
+    "error",
+}
+ALLOWED_ESTADO_TRANSITIONS: dict[
+    Literal["pendiente", "ok", "error"] | None, set[Literal["pendiente", "ok", "error"]]
+] = {
     None: {"pendiente", "ok", "error"},
     "pendiente": {"ok", "error"},
     "error": {"pendiente"},
     "ok": set(),
 }
-
-
-class InvalidStatusTransitionError(ValueError):
-    pass
 
 
 class DocumentService:
@@ -31,29 +36,49 @@ class DocumentService:
         skip: int = 0,
         limit: int = 20,
         include_text: bool = False,
-    ) -> list[dict]:
-        return self.repository.list_documents(skip=skip, limit=limit, include_text=include_text)
+    ) -> list[PublicDocument]:
+        documents = self.repository.list_documents(
+            skip=skip, limit=limit, include_text=include_text
+        )
+        return [PublicDocument.model_validate(doc) for doc in documents]
 
-    def get_document_by_id(self, document_id: ObjectId, include_text: bool = True) -> dict | None:
-        return self.repository.find_by_id(document_id, include_text=include_text)
+    def get_document_by_id(
+        self, document_id: ObjectId, include_text: bool = True
+    ) -> PublicDocument | None:
+        document = self.repository.find_by_id(document_id, include_text=include_text)
+        if document is None:
+            return None
+        return PublicDocument.model_validate(document)
 
-    def get_document_by_checksum(self, checksum: str) -> dict | None:
-        return self.repository.find_by_checksum(checksum)
+    def get_document_by_checksum(self, checksum: str) -> PublicDocument | None:
+        document = self.repository.find_by_checksum(checksum)
+        if document is None:
+            return None
+        return PublicDocument.model_validate(document)
 
-    def update_document(self, document_id: ObjectId, updates: dict) -> dict | None:
+    def update_document(self, document_id: ObjectId, updates: dict) -> PublicDocument | None:
         existing = self.repository.find_by_id(document_id, include_text=False)
         if existing is None:
             return None
 
         if "estado" in updates:
-            self._validate_status_transition(existing.get("estado"), updates["estado"])
+            self._validate_status_transition(
+                existing.get("estado"), updates["estado"]  # type: ignore[arg-type]
+            )
 
-        return self.repository.update_document(document_id, updates)
+        updated = self.repository.update_document(document_id, updates)
+        if updated is None:
+            return None
+        return PublicDocument.model_validate(updated)
 
     def delete_document(self, document_id: ObjectId) -> bool:
         return self.repository.delete_document(document_id)
 
-    def _validate_status_transition(self, current_estado: str | None, new_estado: str) -> None:
+    def _validate_status_transition(
+        self,
+        current_estado: Literal["pendiente", "ok", "error"] | None,
+        new_estado: Literal["pendiente", "ok", "error"],
+    ) -> None:
         if new_estado not in ALLOWED_ESTADOS:
             raise InvalidStatusTransitionError(f"Estado invalido: {new_estado}")
 

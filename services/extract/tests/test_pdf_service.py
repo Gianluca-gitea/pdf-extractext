@@ -2,6 +2,7 @@ import fitz
 import pytest
 
 from app import pdf_service
+from app.models import ExtractionResult
 from app.pdf_service import (
     extract_markdown_from_pdf_bytes,
     extract_text_from_pdf_bytes,
@@ -27,8 +28,9 @@ def test_extract_text_from_pdf_bytes_extracts_real_text():
     pdf_bytes = doc.write()
 
     result = extract_text_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
-    assert "Hola mundo real" in result["content"]
-    assert result["page_count"] == 1
+    assert isinstance(result, ExtractionResult)
+    assert "Hola mundo real" in result.content
+    assert result.page_count == 1
 
 
 def test_extract_text_from_image_bytes_returns_empty_on_none():
@@ -63,16 +65,18 @@ def test_extract_text_from_pdf_bytes_skips_ocr_when_disabled(monkeypatch, pdf_wi
     monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", _fail_ocr)
 
     result = extract_text_from_pdf_bytes(pdf_with_image, ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "Texto normal"
+    assert result.content == "Texto normal"
 
 
 def test_extract_text_from_pdf_bytes_runs_ocr_when_enabled(monkeypatch, pdf_with_image):
     monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", lambda _: "texto ocr")
 
     result = extract_text_from_pdf_bytes(pdf_with_image, ocr_enabled=True)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "Texto normal\ntexto ocr"
+    assert result.content == "Texto normal\ntexto ocr"
 
 
 def test_extract_markdown_rejects_non_pdf_bytes() -> None:
@@ -84,22 +88,26 @@ def test_extract_markdown_counts_pages(build_pdf) -> None:
     pdf_bytes = build_pdf([("uno", 11)], [("dos", 11)], [("tres", 11)])
 
     result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["page_count"] == 3
+    assert result.page_count == 3
 
 
 def test_extract_markdown_returns_empty_content_for_blank_page(build_pdf) -> None:
     result = extract_markdown_from_pdf_bytes(build_pdf([]), ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result == {"content": "", "page_count": 1}
+    assert result.content == ""
+    assert result.page_count == 1
 
 
 def test_extract_markdown_separates_blocks_as_paragraphs_across_pages(build_pdf) -> None:
     pdf_bytes = build_pdf([("Primer parrafo", 11), ("Segundo parrafo", 11)], [("Pagina dos", 11)])
 
     result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "Primer parrafo\n\nSegundo parrafo\n\nPagina dos"
+    assert result.content == "Primer parrafo\n\nSegundo parrafo\n\nPagina dos"
 
 
 def test_extract_markdown_marks_large_text_as_headings(build_pdf) -> None:
@@ -108,21 +116,24 @@ def test_extract_markdown_marks_large_text_as_headings(build_pdf) -> None:
     )
 
     result = extract_markdown_from_pdf_bytes(pdf_bytes, ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "# Titulo\n\n## Subtitulo\n\nCuerpo uno\n\nCuerpo dos"
+    assert result.content == "# Titulo\n\n## Subtitulo\n\nCuerpo uno\n\nCuerpo dos"
 
 
 def test_extract_markdown_skips_ocr_when_disabled(monkeypatch, pdf_with_image) -> None:
     monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", _fail_ocr)
 
     result = extract_markdown_from_pdf_bytes(pdf_with_image, ocr_enabled=False)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "Texto normal"
+    assert result.content == "Texto normal"
 
 
 def test_extract_markdown_runs_ocr_when_enabled(monkeypatch, pdf_with_image) -> None:
     monkeypatch.setattr(pdf_service, "_extract_text_from_image_bytes", lambda _: "texto ocr")
 
     result = extract_markdown_from_pdf_bytes(pdf_with_image, ocr_enabled=True)
+    assert isinstance(result, ExtractionResult)
 
-    assert result["content"] == "Texto normal\n\ntexto ocr"
+    assert result.content == "Texto normal\n\ntexto ocr"

@@ -304,8 +304,9 @@ def test_extraer_texto_envia_el_nombre_real_del_archivo(mocker):
     assert mock_post.call_args.kwargs["files"]["file"][0] == "mi_documento.pdf"
 
 
-def test_api_url_se_lee_del_entorno(monkeypatch):
+def test_api_url_se_lee_del_entorno(monkeypatch, mocker):
     monkeypatch.setenv("API_URL", "http://api.ejemplo:9000")
+    mocker.patch("interface.tk.Tk")
     try:
         importlib.reload(interface)
         assert interface.API_URL == "http://api.ejemplo:9000"
@@ -314,10 +315,11 @@ def test_api_url_se_lee_del_entorno(monkeypatch):
         importlib.reload(interface)
 
 
-def test_urls_por_servicio_usan_api_url_por_defecto(monkeypatch):
+def test_urls_por_servicio_usan_api_url_por_defecto(monkeypatch, mocker):
     monkeypatch.setenv("API_URL", "http://gateway:8000")
     monkeypatch.delenv("EXTRACT_API_URL", raising=False)
     monkeypatch.delenv("DOCUMENTS_API_URL", raising=False)
+    mocker.patch("interface.tk.Tk")
     try:
         importlib.reload(interface)
         assert interface.EXTRACT_API_URL == "http://gateway:8000"
@@ -330,6 +332,7 @@ def test_urls_por_servicio_usan_api_url_por_defecto(monkeypatch):
 def test_urls_por_servicio_se_pueden_separar(monkeypatch, mocker):
     monkeypatch.setenv("EXTRACT_API_URL", "http://127.0.0.1:8001")
     monkeypatch.setenv("DOCUMENTS_API_URL", "http://127.0.0.1:8002")
+    mocker.patch("interface.tk.Tk")
     try:
         importlib.reload(interface)
         interface.archivo_pdf = "/ruta/falsa/doc.pdf"

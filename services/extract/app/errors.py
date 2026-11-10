@@ -1,0 +1,2 @@
+class InvalidPDFError(ValueError):
+    pass

@@ -1,7 +1,7 @@
 x-healthcheck: &healthcheck
-  test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:$${PORT:-8000}/health')\""]
+  test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:$${PORT:-8000}/ready')\""]
   interval: 10s
-  timeout: 5s
+  timeout: 8s
   retries: 3
   start_period: 10s
 

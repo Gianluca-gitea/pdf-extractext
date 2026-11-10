@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from app.services import extract_client as extract_client_module
+from app.models import ExtractionResult
 from app.services.extract_client import (
     ExtractServiceBusyError,
     ExtractServiceTimeoutError,
@@ -32,7 +33,9 @@ def test_extract_text_posts_raw_pdf_and_returns_content() -> None:
 
     result = extract_text(b"%PDF-1.4 data", client=_client(handler))
 
-    assert result == "texto plano"
+    assert isinstance(result, ExtractionResult)
+    assert result.content == "texto plano"
+    assert result.page_count == 3
     assert received == {
         "method": "POST",
         "path": "/extract/text",
@@ -119,3 +122,19 @@ def test_close_extract_client_does_nothing_when_not_started() -> None:
     close_extract_client()
 
     assert get_extract_client.cache_info().currsize == 0
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [{}, {"content": 42, "page_count": 1}, {"content": "x", "page_count": -1}, {"content": "x"}],
+)
+def test_extract_rejects_invalid_success_contract(payload):
+    with pytest.raises(ExtractServiceUnavailableError):
+        extract_text(b"%PDF-1.4", client=_client(lambda request: httpx.Response(200, json=payload)))
+
+
+def test_extract_rejects_non_json_success():
+    with pytest.raises(ExtractServiceUnavailableError):
+        extract_text(
+            b"%PDF-1.4", client=_client(lambda request: httpx.Response(200, text="invalid"))
+        )

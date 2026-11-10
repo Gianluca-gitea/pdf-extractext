@@ -6,10 +6,12 @@ from unittest.mock import MagicMock
 import pytest
 from fastapi.testclient import TestClient
 
-from app import main as main_module
+from app.main import app
+from app.models import ExtractionResult
+from app.routes import extract as main_module
 from app import pdf_service as pdf_service_module
 
-client = TestClient(main_module.app)
+client = TestClient(app)
 
 
 @pytest.fixture
@@ -84,7 +86,7 @@ def test_extract_rejects_invalid_pdf_content() -> None:
 
 def test_extract_forwards_ocr_setting(monkeypatch, pdf_bytes, thread_pool) -> None:
     monkeypatch.setattr(main_module, "settings", replace(main_module.settings, ocr_enabled=True))
-    extractor = MagicMock(return_value={"content": "x", "page_count": 1})
+    extractor = MagicMock(return_value=ExtractionResult(content="x", page_count=1))
     monkeypatch.setattr(main_module, "extract_markdown_from_pdf_bytes", extractor)
 
     client.post("/extract", content=pdf_bytes, headers={"Content-Type": "application/pdf"})
@@ -163,7 +165,7 @@ def test_extract_keeps_large_multipart_file_in_memory(monkeypatch) -> None:
     monkeypatch.setattr(
         main_module,
         "extract_markdown_from_pdf_bytes",
-        lambda file_bytes, ocr_enabled: {"content": "", "page_count": 1},
+        lambda file_bytes, ocr_enabled: ExtractionResult(content="", page_count=1),
     )
     large_pdf = b"%PDF-1.4" + b"0" * (2 * 1024 * 1024)
 
@@ -178,7 +180,7 @@ def test_shutdown_closes_extraction_pool(monkeypatch) -> None:
     monkeypatch.setattr(main_module, "ThreadPoolExecutor", pool_class)
     main_module.get_extraction_pool.cache_clear()
 
-    with TestClient(main_module.app):
+    with TestClient(app):
         main_module.get_extraction_pool()
 
     pool_class.return_value.shutdown.assert_called_once_with()
@@ -250,3 +252,27 @@ def test_extract_text_shares_the_pending_limit_with_extract(monkeypatch, pdf_byt
     assert response.status_code == 503
     assert response.headers["retry-after"] == "1"
     extractor.assert_not_called()
+
+
+def test_raw_upload_stops_reading_after_size_limit(monkeypatch):
+    from dataclasses import replace
+    import asyncio
+    from fastapi import HTTPException
+    from starlette.requests import Request
+
+    monkeypatch.setattr(
+        main_module, "settings", replace(main_module.settings, max_pdf_size_bytes=4)
+    )
+    consumed = []
+
+    async def receive():
+        consumed.append(1)
+        if len(consumed) > 1:
+            raise AssertionError("must reject without consuming the rest")
+        return {"type": "http.request", "body": b"12345", "more_body": True}
+
+    request = Request({"type": "http", "headers": []}, receive)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(main_module._read_pdf_payload(request))
+    assert error.value.status_code == 413
+    assert len(consumed) == 1

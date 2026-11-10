@@ -7,6 +7,7 @@ from functools import lru_cache
 from bson.objectid import ObjectId
 from pymongo import MongoClient, ReturnDocument
 
+from app.models import DocumentBuilt
 from app.settings import Settings, get_settings
 
 logger = logging.getLogger(__name__)
@@ -37,11 +38,11 @@ class DocumentRepository:
         self.collection.create_index([("created_at", -1), ("_id", -1)])
         logger.info("Indexes ensured on collection=%s", self.collection.name)
 
-    def save_document(self, document: dict) -> ObjectId:
-        result = self.collection.insert_one(document)
+    def save_document(self, document: DocumentBuilt) -> ObjectId:
+        result = self.collection.insert_one(document.model_dump())
         logger.info(
             "Saved document: checksum=%s inserted_id=%s",
-            document.get("checksum_archivo"),
+            document.checksum_archivo,
             result.inserted_id,
         )
         inserted_id: ObjectId = result.inserted_id

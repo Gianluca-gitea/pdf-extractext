@@ -36,6 +36,10 @@ server {
         proxy_pass http://documents;
     }
 
+    location = /ready {
+        proxy_pass http://documents;
+    }
+
     location = /health {
         default_type application/json;
         return 200 '{"status":"ok"}';

@@ -3,10 +3,10 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 from time import perf_counter
-from typing import Any
 
 from pymongo.errors import DuplicateKeyError
 
+from app.models import DocumentBuilt, ExtractionResult, ProcessedUploadResult
 from app.repositories.document_repository import DocumentRepository, get_document_repository
 from app.services.checksum_service import calc_checksum
 from app.services.document_builder import construir_documento
@@ -15,8 +15,8 @@ from app.services.extract_client import extract_text
 logger = logging.getLogger(__name__)
 
 
-def _as_result(document: dict) -> dict[str, Any]:
-    return {"document_id": str(document.get("_id", "")), "document": document}
+def _as_result(document_id: str, document: DocumentBuilt) -> ProcessedUploadResult:
+    return ProcessedUploadResult(document_id=document_id, document=document)
 
 
 def process_pdf_upload(
@@ -24,8 +24,8 @@ def process_pdf_upload(
     file_name: str,
     file_bytes: bytes,
     repository: DocumentRepository | None = None,
-    extractor: Callable[[bytes], str] | None = None,
-) -> dict[str, Any]:
+    extractor: Callable[[bytes], ExtractionResult] | None = None,
+) -> ProcessedUploadResult:
     started_at = perf_counter()
     checksum = calc_checksum(file_bytes)
     logger.info(
@@ -44,11 +44,12 @@ def process_pdf_upload(
             checksum,
             existing.get("_id"),
         )
-
-        return _as_result(existing)
+        existing_built = DocumentBuilt.model_validate(existing)
+        return _as_result(str(existing.get("_id", "")), existing_built)
 
     active_extractor = extractor or extract_text
-    texto_extraido = active_extractor(file_bytes)
+    resultado_extraccion = active_extractor(file_bytes)
+    texto_extraido = resultado_extraccion.content
     logger.debug(
         "Extracted text length=%d for filename=%s",
         len(texto_extraido),
@@ -72,7 +73,8 @@ def process_pdf_upload(
         if winner is None:
             raise
         logger.info("Concurrent upload already saved checksum=%s", checksum)
-        return _as_result(winner)
+        winner_built = DocumentBuilt.model_validate(winner)
+        return _as_result(str(winner.get("_id", "")), winner_built)
 
     logger.info(
         "Saved new document: filename=%s checksum=%s inserted_id=%s duration_ms=%d",
@@ -82,7 +84,4 @@ def process_pdf_upload(
         duration_ms,
     )
 
-    return {
-        "document_id": str(inserted_id),
-        "document": document,
-    }
+    return _as_result(str(inserted_id), document)
