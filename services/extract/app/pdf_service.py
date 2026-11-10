@@ -88,9 +88,7 @@ def extract_text_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> Extr
     return ExtractionResult(content=text_txt, page_count=page_count)
 
 
-def extract_markdown_from_pdf_bytes(
-    file_bytes: bytes, *, ocr_enabled: bool
-) -> ExtractionResult:
+def extract_markdown_from_pdf_bytes(file_bytes: bytes, *, ocr_enabled: bool) -> ExtractionResult:
     logger.info("Starting PDF markdown extraction: bytes=%d ocr=%s", len(file_bytes), ocr_enabled)
 
     blocks, page_count = _read_blocks(file_bytes, ocr_enabled)

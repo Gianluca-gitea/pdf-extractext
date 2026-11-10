@@ -16,7 +16,9 @@ ALLOWED_ESTADOS: set[Literal["pendiente", "ok", "error"]] = {
     "ok",
     "error",
 }
-ALLOWED_ESTADO_TRANSITIONS: dict[Literal["pendiente", "ok", "error"] | None, set[Literal["pendiente", "ok", "error"]]] = {
+ALLOWED_ESTADO_TRANSITIONS: dict[
+    Literal["pendiente", "ok", "error"] | None, set[Literal["pendiente", "ok", "error"]]
+] = {
     None: {"pendiente", "ok", "error"},
     "pendiente": {"ok", "error"},
     "error": {"pendiente"},
@@ -54,9 +56,7 @@ class DocumentService:
             return None
         return PublicDocument.model_validate(document)
 
-    def update_document(
-        self, document_id: ObjectId, updates: dict
-    ) -> PublicDocument | None:
+    def update_document(self, document_id: ObjectId, updates: dict) -> PublicDocument | None:
         existing = self.repository.find_by_id(document_id, include_text=False)
         if existing is None:
             return None

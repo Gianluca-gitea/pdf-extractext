@@ -59,9 +59,7 @@ def test_process_pdf_upload_orchestrates_checksum_builder_and_repository(
         file_name=file_name,
         file_bytes=file_bytes,
         repository=repository,
-        extractor=lambda received_bytes: ExtractionResult(
-            content="texto extraido", page_count=1
-        ),
+        extractor=lambda received_bytes: ExtractionResult(content="texto extraido", page_count=1),
     )
 
     assert isinstance(result, ProcessedUploadResult)
@@ -126,9 +124,7 @@ def test_process_pdf_upload_sends_file_bytes_to_extractor() -> None:
 def test_process_pdf_upload_uses_extract_client_by_default(monkeypatch) -> None:
     repository = MagicMock()
     repository.find_by_checksum.return_value = None
-    extract_text = MagicMock(
-        return_value=ExtractionResult(content="texto remoto", page_count=1)
-    )
+    extract_text = MagicMock(return_value=ExtractionResult(content="texto remoto", page_count=1))
     monkeypatch.setattr(upload_service, "extract_text", extract_text)
 
     result = upload_service.process_pdf_upload(
