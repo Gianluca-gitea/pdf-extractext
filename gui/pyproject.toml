@@ -7,6 +7,7 @@ authors = [{name = "PDF Extract", email = "contact@pdfextract.local"}]
 license = {text = "MIT"}
 
 dependencies = [
+    "customtkinter>=5.2.2,<6",
     "requests>=2.34.2",
 ]
 
