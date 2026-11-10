@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from typing import Literal
 
 from app.models import DocumentBuilt
 
@@ -13,7 +14,7 @@ def construir_documento(
     texto_extraido: str,
     checksum_archivo: str,
     duracion_ms: int,
-    estado: str = "pendiente",
+    estado: Literal["pendiente", "ok", "error"] = "pendiente",
     error: str | None = None,
 ) -> DocumentBuilt:
 
